@@ -4,17 +4,20 @@ import path from 'path';
 import { performance } from 'perf_hooks';
 
 import { uploadService } from './upload.services.js';
+import type { Request, Response } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = __filename.substring(0, __filename.lastIndexOf('/'));
 
-const uploadDoc = async (req, res) => {
+const uploadDoc = async (req: Request, res: Response) => {
   try {
     performance.mark('reading-doc-start');
     const data = await fs.readFile(
+      // @ts-ignore
       path.join(__dirname, '../../../data', req.file.filename),
       'utf-8',
     );
+
     performance.mark('reading-doc-end');
 
     performance.mark('storing-doc-data-start');
@@ -87,6 +90,7 @@ const uploadDoc = async (req, res) => {
     // 2. Format the file output string
     let report = `\n==================================================\n`;
     report += `BENCHMARK RUN: ${new Date().toLocaleString()}\n`;
+    // @ts-ignore
     report += `FILE PROCESSED: ${req.file.filename}\n`;
     report += `--------------------------------------------------\n`;
 
@@ -120,7 +124,8 @@ const uploadDoc = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Something went wrong!',
-      err: error.message,
+      // @ts-ignore
+      err: error?.message,
     });
   }
 };

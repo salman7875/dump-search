@@ -1,14 +1,16 @@
-import fs from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
-import natural from "natural";
-import readline from "readline";
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import natural from 'natural';
+import readline from 'readline';
+import { eng } from './utils/stopwords/stopword_eng.js';
+import db from './libs/schema/db.js';
 
-import { eng } from "./utils/stopwords/stopword_eng.js";
-import db from "./libs/schema/db.js";
+// import { eng } from "./utils/stopwords/stopword_eng.js";
+// import db from "./libs/schema/db.js";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = __filename.substring(0, __filename.lastIndexOf("/"));
+const __dirname = __filename.substring(0, __filename.lastIndexOf('/'));
 
 function removeStopWords(tokens) {
   const engSet = new Set(eng);
@@ -28,9 +30,12 @@ function processText(text) {
 }
 
 async function storeData(data, filename) {
-  const hash = {};
+  const hash: Record<
+    string,
+    { filename: string; text: string; count: number }
+  > = {};
   let count = 0;
-  for (const d of data.split("\n\n")) {
+  for (const d of data.split('\n\n')) {
     const payload = {
       filename: filename,
       text: d,
@@ -41,16 +46,16 @@ async function storeData(data, filename) {
   }
 
   await fs.writeFile(
-    path.join(__dirname, "../json", "data.json"),
+    path.join(__dirname, '../json', 'data.json'),
     JSON.stringify(hash, null, 2),
-    "utf-8",
+    'utf-8',
   );
 
   return hash;
 }
 
 async function storeDataInDB(data) {
-  const docData = data.split("\n\n");
+  const docData = data.split('\n\n');
   const docIds = [];
 
   const insertStmt = db.prepare(
@@ -70,10 +75,10 @@ async function storeDataInDB(data) {
 }
 
 async function uploadFile() {
-  const filename = "data.txt";
+  const filename = 'data.txt';
   const data = await fs.readFile(
-    path.join(__dirname, "../data", filename),
-    "utf-8",
+    path.join(__dirname, '../data', filename),
+    'utf-8',
   );
 
   // const file = await storeData(data, filename);
@@ -191,7 +196,7 @@ async function buildIndex(data) {
   for (const [key, value] of Object.entries(data)) {
     const processedTokens = processText(value.text);
 
-    if (x === 0) console.log("Processed Tokens:", processedTokens);
+    if (x === 0) console.log('Processed Tokens:', processedTokens);
     let count = 0;
 
     for (const token of processedTokens) {
@@ -220,16 +225,16 @@ async function buildIndex(data) {
   }
 
   await fs.writeFile(
-    path.join(__dirname, "../json", "index.json"),
+    path.join(__dirname, '../json', 'index.json'),
     JSON.stringify(Object.fromEntries(index), null, 2),
-    "utf-8",
+    'utf-8',
   );
 }
 
 async function queryIndex(query) {
   const data = await fs.readFile(
-    path.join(__dirname, "../json", "index.json"),
-    "utf-8",
+    path.join(__dirname, '../json', 'index.json'),
+    'utf-8',
   );
 
   const index = new Map(Object.entries(JSON.parse(data)));
@@ -257,7 +262,7 @@ async function queryIndexFromDB(query) {
     WHERE token AS v
     JOIN scores AS s on v.id = s.token_id
     JOIN docs AS d ON s.doc_id = d.id
-    WHERE v.token IN (${processedTokens.map((p) => "?").join(", ")})
+    WHERE v.token IN (${processedTokens.map((p) => '?').join(', ')})
   `;
 
   const allData = db.prepare(q).all(processedTokens);
@@ -265,7 +270,7 @@ async function queryIndexFromDB(query) {
 
   const vocabs = db
     .prepare(
-      `SELECT id, token, idf_score FROM vocabulary WHERE token IN (${processedTokens.map((t) => "?").join(", ")})`,
+      `SELECT id, token, idf_score FROM vocabulary WHERE token IN (${processedTokens.map((t) => '?').join(', ')})`,
     )
     .all(processedTokens);
 
@@ -274,14 +279,14 @@ async function queryIndexFromDB(query) {
 
   const scoresRes = db
     .prepare(
-      `SELECT * FROM scores WHERE token_id IN (${tokenIds.map((t) => "?").join(", ")})`,
+      `SELECT * FROM scores WHERE token_id IN (${tokenIds.map((t) => '?').join(', ')})`,
     )
     .all(tokenIds);
 
   const docIds = scoresRes.map((s) => s.doc_id);
   const docRes = db
     .prepare(
-      `SELECT id, content, total_token FROM docs WHERE id IN (${docIds.map((d) => "?").join(", ")})`,
+      `SELECT id, content, total_token FROM docs WHERE id IN (${docIds.map((d) => '?').join(', ')})`,
     )
     .all(docIds);
 
@@ -303,8 +308,8 @@ async function queryIndexFromDB(query) {
 
 async function findRelevantParagraphs(idx) {
   const data = await fs.readFile(
-    path.join(__dirname, "../json", "data.json"),
-    "utf-8",
+    path.join(__dirname, '../json', 'data.json'),
+    'utf-8',
   );
 
   const resData = JSON.parse(data);
@@ -319,7 +324,7 @@ async function main() {
       output: process.stdout,
     });
 
-    rl.question("Enter your query: ", async (query) => {
+    rl.question('Enter your query: ', async (query) => {
       const queryResult = await queryIndexFromDB(query);
       console.log(queryResult[0], queryResult.length);
       // const queryResult = await queryIndex(query);
@@ -329,12 +334,12 @@ async function main() {
       rl.close();
     });
   } catch (error) {
-    console.error("Error reading file:", error);
+    console.error('Error reading file:', error);
   }
 }
 
 uploadFile()
-  .then(() => console.log("Uploaded success!"))
+  .then(() => console.log('Uploaded success!'))
   .catch((err) => console.log(err));
 
 main();
