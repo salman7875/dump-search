@@ -65,7 +65,11 @@ const calculateScore = (data, processedTokens, docIds) => {
       let count = 0;
 
       for (const token of processedToken) {
-        localTF.set(token, (localTF.get(token) || 0) + 1);
+        if (localTF.has(token)) {
+          localTF.set(token, localTF.get(token) + 1)
+        } else {
+          localTF.set(token, 0)
+        }
       }
 
       for (const token of processedToken) {

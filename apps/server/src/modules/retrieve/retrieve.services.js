@@ -74,100 +74,6 @@ const getDocs = (docIds) => {
   }
 };
 
-/**
- * const weightingAndMergingDocs = (
-  processedTokens,
-  documents,
-  scores,
-  vocabMap,
-) => {
-  try {
-    const docMap = new Map(documents.map((d) => [d.id, d]));
-
-    const docRankingMap = new Map();
-
-    scores.forEach((row) => {
-      const docId = row.doc_id;
-      const vocab = vocabMap.get(row.token_id);
-      const positions = row.position
-        ? JSON.parse(row.position.toString('utf-8'))
-        : [];
-      const weight = row.tf_score * vocab.idf_score;
-
-      if (!docRankingMap.has(docId)) {
-        docRankingMap.set(docId, {
-          doc_id: docId,
-          docs: docMap.get(docId),
-          totalScore: 0,
-          matchedLiteralTokens: new Set(),
-          matchedPhoneticTokens: new Set(),
-          tokenPosition: new Map(),
-        });
-      }
-
-      const docData = docRankingMap.get(docId);
-      docData.totalScore += weight;
-
-      docData.matchedLiteralTokens.add(vocab.token.toLowerCase());
-      docData.matchedPhoneticTokens.add(vocab.phonetic_token.toLowerCase());
-      docData.tokenPosition.set(vocab.phonetic_token, positions);
-    });
-
-    const vocabToken = Array.from(vocabMap.values()).map((v) => v.token);
-
-    const finalResults = Array.from(docRankingMap.values()).map((doc) => {
-      let phraseMatchBonus = 0;
-      let exactSpelling = 0;
-
-      for (const token of vocabToken) {
-        if (doc.matchedLiteralTokens.has(token.toLowerCase())) {
-          exactSpelling += 5.0;
-        }
-      }
-
-      if (processedTokens.length > 1) {
-        const hasAllToken = processedTokens.every((token) =>
-          doc.tokenPosition.has(token),
-        );
-
-        if (hasAllToken) {
-          const firstTokenPosition = doc.tokenPosition.get(processedTokens[0]);
-
-          const hasExactPhrase = firstTokenPosition.some((startPos) => {
-            return processedTokens.every((token, idx) => {
-              if (idx === 0) return true;
-
-              const targetPosition = doc.tokenPosition.get(token);
-              return targetPosition.some((p) => p === startPos + idx);
-            });
-          });
-
-          if (hasExactPhrase) {
-            phraseMatchBonus = 15.0;
-          }
-        }
-      }
-
-      const finalCalculatedWeight =
-        doc.totalScore + exactSpelling + phraseMatchBonus;
-
-      return {
-        doc_id: doc.doc_id,
-        docs: doc.docs,
-        finalWeight: Number(finalCalculatedWeight).toFixed(3),
-        isMatched: true,
-      };
-    });
-
-    const results = finalResults.sort((a, b) => b.finalWeight - a.finalWeight);
-    return results;
-  } catch (error) {
-    console.error(`Error in (weightingAndMergingDocs): ${error.message}`);
-    return error;
-  }
-};
- */
-
 const weightingAndMergingDocs = (
   processedTokens,
   documents,
@@ -213,36 +119,79 @@ const weightingAndMergingDocs = (
 
     const vocabTokens = Array.from(vocabMap.values()).map((v) => v.token);
 
-    const finalResults = Array.from(docRankingMap.values()).filter((doc) => {
-      let bonusLiteralToken = 0;
+    const finalResults = Array.from(docRankingMap.values()).map((doc) => {
+      const noOfTokenMatchedScore = doc.matchedPhoneticToken.size;
+      let totalDistance = 0;
+      let pairsCompared = 0;
 
-      for (const token of vocabTokens) {
-        if (doc.matchedLiteralToken.has(token.toLowerCase())) {
-          bonusLiteralToken += 3.0;
+      for (let i = 0; i < processedTokens.length - 1; i++) {
+        const currentToken = processedTokens[i].toLowerCase();
+        const nextToken = processedTokens[i + 1].toLowerCase();
+
+        // avoid calculating massive backward facing distance penalties.
+        if (currentToken === nextToken) continue;
+
+        const hasBothToken =
+          doc.tokenPosition.has(currentToken) &&
+          doc.tokenPosition.has(nextToken);
+
+        if (hasBothToken) {
+          const position1 = doc.tokenPosition.get(currentToken);
+          const position2 = doc.tokenPosition.get(nextToken);
+
+          let minPairDistance = Infinity;
+
+          for (const pos1 of position1) {
+            for (const pos2 of position2) {
+              const distance = pos2 - pos1;
+
+              // Enforce tight proximity thresholds (e.g, words within 30 tokens of each other)
+              if (distance > 0 && distance < minPairDistance && distance < 15) {
+                minPairDistance = distance;
+              }
+            }
+          }
+
+          if (minPairDistance !== Infinity) {
+            totalDistance += minPairDistance;
+            pairsCompared++; // Only increment if an actual structural match was found
+          }
         }
       }
 
-      doc.bonusLiteralToken = bonusLiteralToken;
+      // Proximity Scoring
+      let proximityBoost = 1.0;
+      let proximityScore = 0;
 
-      if (processedTokens.length) {
-        const containAllTokens = processedTokens.every((token, idx, arr) => {
-          return doc.tokenPosition.has(token.toLowerCase());
-        });
+      if (pairsCompared > 0 && totalDistance > 0) {
+        proximityScore = Number((pairsCompared * 100) / totalDistance); // Calculate the pure proximity score for metrics output
 
-        return containAllTokens;
+        // An average distance of 5 words will now yield a ~3.0x multiplier boost! (Aggressive inverse scaling)
+        const avgDistance = totalDistance / pairsCompared;
+        proximityBoost += 10 / (2 + Math.log(avgDistance));
       }
 
-      return false;
+      if (totalDistance >= 1500) {
+        proximityBoost *= 0.3; // Slash score by 70% if tokens are backward (out of order penalty)
+      }
+
+      const tokenMatchWeight = noOfTokenMatchedScore * 5;
+
+      // Compute final score by scaling the entire matched baseline
+      const baseScore = tokenMatchWeight + Number(doc.totalScore);
+      const finalScore = baseScore * proximityBoost;
+
+      return {
+        doc_id: doc.doc_id,
+        docs: doc.docs,
+        totalScore: doc.totalScore,
+        proximityScore: Number(proximityScore.toFixed(3)),
+        finalScore: Number(finalScore.toFixed(3)),
+      };
     });
 
-    return finalResults
-      .map((result) => {
-        return {
-          ...result,
-          finalScore: result.totalScore + result.bonusLiteralToken,
-        };
-      })
-      .sort((a, b) => a.finalScore - b.finalScore);
+    console.log(processedTokens);
+    return finalResults.sort((a, b) => b.finalScore - a.finalScore);
   } catch (error) {
     console.error(`Error in (weightingAndMergingDocs): ${error.message}`);
     return error;
