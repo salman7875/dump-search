@@ -74,7 +74,8 @@ const calculateScore = (
 
     const vocabs: { id: number; token: string }[] = db
       .prepare(`SELECT id, token FROM vocabulary`)
-      .all();
+      .all() as { id: number; token: string }[];
+
     const vocabMap = new Map<string, number>(
       vocabs.map((vocab) => [vocab.token, vocab.id]),
     );
@@ -134,7 +135,7 @@ const storeDocData = (
     const docData: string[] = data.split('\n\n');
     const docIds: number[] = [];
 
-    const insertDoc = db.prepare(
+    const insertDoc = db.prepare<[string, string, number], { id: number }>(
       `INSERT INTO docs (title, content, total_token) 
          VALUES (?, ?, ?) 
          ON CONFLICT(title) DO UPDATE SET content=excluded.content 
@@ -143,9 +144,10 @@ const storeDocData = (
 
     const insertMany = db.transaction((docData: string[]) => {
       for (let i = 0; i < docData.length; i++) {
+        const doc = docData[i]!;
         const title = `Document ${i + 1}`;
-        const result = insertDoc.get(title, docData[i], docData[i]?.length);
-        docIds.push(result.id);
+        const result = insertDoc.get(title, doc, doc.length);
+        docIds.push(result!.id);
       }
     });
 
@@ -268,30 +270,18 @@ const storeScores = (
       `INSERT INTO scores (token_id, doc_id, tf_score, position) VALUES (?, ?, ?, ?)`,
     );
 
-    const insertMany = db.transaction(
-      (
-        scores: Map<
-          string,
-          {
-            tokenId: number;
-            docId: number;
-            tfScore: number;
-            position: number[];
-          }
-        >,
-      ) => {
-        for (const [key, value] of scores) {
-          const payload = [
-            value.tokenId,
-            value.docId,
-            value.tfScore,
-            Buffer.from(JSON.stringify(value.position)),
-          ];
+    const insertMany = db.transaction((scores) => {
+      for (const [key, value] of scores) {
+        const payload = [
+          value.tokenId,
+          value.docId,
+          value.tfScore,
+          Buffer.from(JSON.stringify(value.position)),
+        ];
 
-          instace.run(payload);
-        }
-      },
-    );
+        instace.run(payload);
+      }
+    });
 
     insertMany(scoreMap.entries());
   } catch (error: unknown) {
