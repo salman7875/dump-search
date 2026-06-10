@@ -11,9 +11,13 @@ const __dirname = __filename.substring(0, __filename.lastIndexOf('/'));
 
 const uploadDoc = async (req: Request, res: Response) => {
   try {
+    if (!req.file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
+    }
+
     performance.mark('reading-doc-start');
     const data = await fs.readFile(
-      // @ts-ignore
       path.join(__dirname, '../../../data', req.file.filename),
       'utf-8',
     );
@@ -90,7 +94,6 @@ const uploadDoc = async (req: Request, res: Response) => {
     // 2. Format the file output string
     let report = `\n==================================================\n`;
     report += `BENCHMARK RUN: ${new Date().toLocaleString()}\n`;
-    // @ts-ignore
     report += `FILE PROCESSED: ${req.file.filename}\n`;
     report += `--------------------------------------------------\n`;
 
@@ -124,8 +127,7 @@ const uploadDoc = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Something went wrong!',
-      // @ts-ignore
-      err: error?.message,
+      err: error,
     });
   }
 };

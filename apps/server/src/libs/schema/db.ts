@@ -1,10 +1,10 @@
 import Database from 'better-sqlite3';
+import type { Database as DatabaseType } from 'better-sqlite3';
 
-const db = new Database('test.db', {
+const db: DatabaseType = new Database('test.db', {
   readonly: false,
   fileMustExist: false,
   timeout: 5000,
-  verbose: null,
 });
 
 const createSchema = `

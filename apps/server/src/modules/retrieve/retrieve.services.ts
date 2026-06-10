@@ -1,99 +1,235 @@
 import db from '../../libs/schema/db.js';
-import fs from 'fs';
-import util from 'util';
 
-const getVocabs = (phoneticTokens) => {
+const getVocabs = (
+  phoneticTokens: string[],
+): {
+  id: number;
+  token: string;
+  phonetic_token: string;
+  alt_phonetic_token: string;
+  idf_score: number;
+}[] => {
   try {
     const data = db
       .prepare(
         `SELECT id, token, phonetic_token, alt_phonetic_token, idf_score FROM vocabulary WHERE phonetic_token IN (${phoneticTokens.map((t) => '?').join(', ')})`,
       )
-      .all(phoneticTokens);
+      .all(phoneticTokens) as
+      | {
+          id: number;
+          token: string;
+          phonetic_token: string;
+          alt_phonetic_token: string;
+          idf_score: number;
+        }[]
+      | undefined;
+
+    if (!data) {
+      throw new Error('No vocab found!');
+    }
 
     return data;
-  } catch (error) {
-    console.error(`Error in (getVocabs): ${error.message}`);
-    return error;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error in (getVocabs): ${error.message}`);
+    } else {
+      console.error(error);
+    }
+    throw error;
   }
 };
 
-const getVocabMap = (vocabs) => {
+const getVocabMap = (
+  vocabs: {
+    id: number;
+    token: string;
+    phonetic_token: string;
+    alt_phonetic_token: string;
+    idf_score: number;
+  }[],
+): Map<
+  number,
+  {
+    id: number;
+    token: string;
+    phonetic_token: string;
+    alt_phonetic_token: string;
+    idf_score: number;
+  }
+> => {
   return new Map(vocabs.map((v) => [v.id, v]));
 };
 
-const getVocabTokenId = (vocabs) => {
+const getVocabTokenId = (
+  vocabs: {
+    id: number;
+    token: string;
+    phonetic_token: string;
+    alt_phonetic_token: string;
+    idf_score: number;
+  }[],
+): number[] => {
   return vocabs.map((v) => v.id);
 };
 
-const getVocabFromToken = (tokens) => {
+const getVocabFromToken = (
+  tokens: string[],
+): {
+  vocabs: {
+    id: number;
+    token: string;
+    phonetic_token: string;
+    alt_phonetic_token: string;
+    idf_score: number;
+  }[];
+  vocabMap: Map<
+    number,
+    {
+      id: number;
+      token: string;
+      phonetic_token: string;
+      alt_phonetic_token: string;
+      idf_score: number;
+    }
+  >;
+  tokenIds: number[];
+} => {
   try {
     const vocabs = getVocabs(tokens);
     const vocabMap = getVocabMap(vocabs);
     const tokenIds = getVocabTokenId(vocabs);
 
     if (tokenIds.length < 1) {
-      return { success: true, message: 'No Token Ids', data: [] };
+      // return { success: true, message: 'No Token Ids', data: [] };
+      throw new Error('No Token Ids!');
     }
 
     return { vocabs, vocabMap, tokenIds };
-  } catch (error) {
-    console.error(`Error in (getVocabFromToken): ${error.message}`);
-    return error;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error in (getVocabFromToken): ${error.message}`);
+    } else {
+      console.error(error);
+    }
+    throw error;
   }
 };
 
-const getScores = (tokenIds) => {
+const getScores = (
+  tokenIds: number[],
+): {
+  scoresRes: {
+    token_id: number;
+    doc_id: number;
+    tf_score: number;
+    position: Buffer;
+  }[];
+  docIds: number[];
+} => {
   try {
     const scoresRes = db
       .prepare(
         `SELECT * FROM scores WHERE token_id IN (${tokenIds.map((t) => '?').join(', ')})`,
       )
-      .all(tokenIds);
+      .all(tokenIds) as
+      | {
+          token_id: number;
+          doc_id: number;
+          tf_score: number;
+          position: Buffer;
+        }[]
+      | undefined;
+
+    if (!scoresRes) {
+      throw new Error('No Score Found!');
+    }
 
     const docIds = [...new Set(scoresRes.map((s) => s.doc_id))];
 
     return { scoresRes, docIds };
-  } catch (error) {
-    console.error(`Error in (getScores): ${error.message}`);
-    return error;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error in (getScores): ${error.message}`);
+    } else {
+      console.error(error);
+    }
+    throw error;
   }
 };
 
-const getDocs = (docIds) => {
+const getDocs = (
+  docIds: number[],
+): { docRes: { id: number; content: string; total_token: number }[] } => {
   try {
     const docRes = db
       .prepare(
         `SELECT id, content, total_token FROM docs WHERE id IN (${docIds.map((d) => '?').join(', ')})`,
       )
-      .all(docIds);
+      .all(docIds) as
+      | { id: number; content: string; total_token: number }[]
+      | undefined;
+
+    if (!docRes) {
+      throw new Error('No Docs Found!');
+    }
 
     return { docRes };
-  } catch (error) {
-    console.error(`Error in (getDocs): ${error.message}`);
-    return error;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error in (getDocs): ${error.message}`);
+    } else {
+      console.error(error);
+    }
+    throw error;
   }
 };
 
 const weightingAndMergingDocs = (
-  processedTokens,
-  documents,
-  scores,
-  vocabMap,
+  processedTokens: string[],
+  documents: { id: number; content: string; total_token: number }[],
+  scores: {
+    token_id: number;
+    doc_id: number;
+    tf_score: number;
+    position: Buffer<ArrayBufferLike>;
+  }[],
+  vocabMap: Map<
+    number,
+    {
+      id: number;
+      token: string;
+      phonetic_token: string;
+      alt_phonetic_token: string;
+      idf_score: number;
+    }
+  >,
 ) => {
   try {
     const docMap = new Map(documents.map((d) => [d.id, d]));
-    const docRankingMap = new Map();
-
+    const docRankingMap = new Map<
+      number,
+      {
+        doc_id: number;
+        docs: any;
+        totalScore: number;
+        matchedLiteralToken: Set<string>;
+        matchedPhoneticToken: Set<string>;
+        tokenPosition: Map<string, number[]>;
+      }
+    >();
     for (let i = 0; i < scores.length; i++) {
-      const vocab = vocabMap.get(scores[i].token_id);
+      const score = scores[i]!;
+      const vocab = vocabMap.get(score.token_id);
 
-      const docId = scores[i].doc_id;
-      const doc = docMap.get(scores[i].doc_id);
-      const position = scores[i].position
-        ? JSON.parse(scores[i].position.toString('utf-8'))
+      if (!vocab) continue;
+
+      const docId = score.doc_id;
+      const doc = docMap.get(score.doc_id);
+      const position = score.position
+        ? JSON.parse(score.position.toString('utf-8'))
         : [];
 
-      const weight = scores[i].tf_score + vocab.idf_score;
+      const weight = score.tf_score + vocab.idf_score;
 
       if (!docRankingMap.get(docId)) {
         docRankingMap.set(docId, {
@@ -106,7 +242,7 @@ const weightingAndMergingDocs = (
         });
       }
 
-      const docRankData = docRankingMap.get(docId);
+      const docRankData = docRankingMap.get(docId)!;
       docRankData.totalScore += weight;
 
       docRankData.matchedLiteralToken.add(vocab.token.toLowerCase());
@@ -117,16 +253,14 @@ const weightingAndMergingDocs = (
       );
     }
 
-    const vocabTokens = Array.from(vocabMap.values()).map((v) => v.token);
-
     const finalResults = Array.from(docRankingMap.values()).map((doc) => {
       const noOfTokenMatchedScore = doc.matchedPhoneticToken.size;
       let totalDistance = 0;
       let pairsCompared = 0;
 
       for (let i = 0; i < processedTokens.length - 1; i++) {
-        const currentToken = processedTokens[i].toLowerCase();
-        const nextToken = processedTokens[i + 1].toLowerCase();
+        const currentToken = processedTokens[i]!.toLowerCase();
+        const nextToken = processedTokens[i + 1]!.toLowerCase();
 
         // avoid calculating massive backward facing distance penalties.
         if (currentToken === nextToken) continue;
@@ -136,8 +270,8 @@ const weightingAndMergingDocs = (
           doc.tokenPosition.has(nextToken);
 
         if (hasBothToken) {
-          const position1 = doc.tokenPosition.get(currentToken);
-          const position2 = doc.tokenPosition.get(nextToken);
+          const position1 = doc.tokenPosition.get(currentToken) as number[];
+          const position2 = doc.tokenPosition.get(nextToken) as number[];
 
           let minPairDistance = Infinity;
 
@@ -190,11 +324,14 @@ const weightingAndMergingDocs = (
       };
     });
 
-    console.log(processedTokens);
     return finalResults.sort((a, b) => b.finalScore - a.finalScore);
-  } catch (error) {
-    console.error(`Error in (weightingAndMergingDocs): ${error.message}`);
-    return error;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error in (weightingAndMergingDocs): ${error.message}`);
+    } else {
+      console.error(error);
+    }
+    throw error;
   }
 };
 

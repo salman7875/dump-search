@@ -1,19 +1,13 @@
-import db from '../../libs/schema/db.js';
+import type { Request, Response } from 'express';
 import { quicker } from '../../utils/quicker.js';
 import { retrieveService } from './retrieve.services.js';
 
-/**
- *
- * @param {{ q }} req
- * @param {{ success: boolean, message: string, data: [] }} res
- */
-
-const getAllDocs = async (req, res) => {
-  const { query } = req.query;
+const getAllDocs = async (req: Request, res: Response) => {
+  const { query } = req.query as { query: string };
 
   try {
     const phoneticToken = quicker.processPhonetic(query);
-    const processedTokens = phoneticToken.map((token) => token[0]);
+    const processedTokens = phoneticToken.map((token) => token[0]) as string[];
 
     const { vocabMap, tokenIds } =
       retrieveService.getVocabFromToken(processedTokens);
