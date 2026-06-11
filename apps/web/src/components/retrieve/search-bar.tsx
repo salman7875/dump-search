@@ -9,6 +9,7 @@ const SearchBar = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
   };
+
   return (
     <form onSubmit={handleSearch} className="flex-1 relative">
       <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-400">
