@@ -1,28 +1,17 @@
 import db from '../../libs/schema/db.js';
+import {
+  DocumentRecord,
+  ScoreRecord,
+  VocabularyRecord,
+} from './retreive.types.js';
 
-const getVocabs = (
-  phoneticTokens: string[],
-): {
-  id: number;
-  token: string;
-  phonetic_token: string;
-  alt_phonetic_token: string;
-  idf_score: number;
-}[] => {
+const getVocabs = (phoneticTokens: string[]): VocabularyRecord[] => {
   try {
     const data = db
       .prepare(
         `SELECT id, token, phonetic_token, alt_phonetic_token, idf_score FROM vocabulary WHERE phonetic_token IN (${phoneticTokens.map((t) => '?').join(', ')})`,
       )
-      .all(phoneticTokens) as
-      | {
-          id: number;
-          token: string;
-          phonetic_token: string;
-          alt_phonetic_token: string;
-          idf_score: number;
-        }[]
-      | undefined;
+      .all(phoneticTokens) as VocabularyRecord[];
 
     if (!data) {
       throw new Error('No vocab found!');
@@ -40,58 +29,20 @@ const getVocabs = (
 };
 
 const getVocabMap = (
-  vocabs: {
-    id: number;
-    token: string;
-    phonetic_token: string;
-    alt_phonetic_token: string;
-    idf_score: number;
-  }[],
-): Map<
-  number,
-  {
-    id: number;
-    token: string;
-    phonetic_token: string;
-    alt_phonetic_token: string;
-    idf_score: number;
-  }
-> => {
+  vocabs: VocabularyRecord[],
+): Map<number, VocabularyRecord> => {
   return new Map(vocabs.map((v) => [v.id, v]));
 };
 
-const getVocabTokenId = (
-  vocabs: {
-    id: number;
-    token: string;
-    phonetic_token: string;
-    alt_phonetic_token: string;
-    idf_score: number;
-  }[],
-): number[] => {
+const getVocabTokenId = (vocabs: VocabularyRecord[]): number[] => {
   return vocabs.map((v) => v.id);
 };
 
 const getVocabFromToken = (
   tokens: string[],
 ): {
-  vocabs: {
-    id: number;
-    token: string;
-    phonetic_token: string;
-    alt_phonetic_token: string;
-    idf_score: number;
-  }[];
-  vocabMap: Map<
-    number,
-    {
-      id: number;
-      token: string;
-      phonetic_token: string;
-      alt_phonetic_token: string;
-      idf_score: number;
-    }
-  >;
+  vocabs: VocabularyRecord[];
+  vocabMap: Map<number, VocabularyRecord>;
   tokenIds: number[];
 } => {
   try {
@@ -118,12 +69,7 @@ const getVocabFromToken = (
 const getScores = (
   tokenIds: number[],
 ): {
-  scoresRes: {
-    token_id: number;
-    doc_id: number;
-    tf_score: number;
-    position: Buffer;
-  }[];
+  scoresRes: ScoreRecord[];
   docIds: number[];
 } => {
   try {
@@ -131,14 +77,7 @@ const getScores = (
       .prepare(
         `SELECT * FROM scores WHERE token_id IN (${tokenIds.map((t) => '?').join(', ')})`,
       )
-      .all(tokenIds) as
-      | {
-          token_id: number;
-          doc_id: number;
-          tf_score: number;
-          position: Buffer;
-        }[]
-      | undefined;
+      .all(tokenIds) as ScoreRecord[];
 
     if (!scoresRes) {
       throw new Error('No Score Found!');
@@ -157,17 +96,13 @@ const getScores = (
   }
 };
 
-const getDocs = (
-  docIds: number[],
-): { docRes: { id: number; content: string; total_token: number }[] } => {
+const getDocs = (docIds: number[]): { docRes: DocumentRecord[] } => {
   try {
     const docRes = db
       .prepare(
         `SELECT id, content, total_token FROM docs WHERE id IN (${docIds.map((d) => '?').join(', ')})`,
       )
-      .all(docIds) as
-      | { id: number; content: string; total_token: number }[]
-      | undefined;
+      .all(docIds) as DocumentRecord[];
 
     if (!docRes) {
       throw new Error('No Docs Found!');
@@ -186,23 +121,9 @@ const getDocs = (
 
 const weightingAndMergingDocs = (
   processedTokens: string[],
-  documents: { id: number; content: string; total_token: number }[],
-  scores: {
-    token_id: number;
-    doc_id: number;
-    tf_score: number;
-    position: Buffer<ArrayBufferLike>;
-  }[],
-  vocabMap: Map<
-    number,
-    {
-      id: number;
-      token: string;
-      phonetic_token: string;
-      alt_phonetic_token: string;
-      idf_score: number;
-    }
-  >,
+  documents: DocumentRecord[],
+  scores: ScoreRecord[],
+  vocabMap: Map<number, VocabularyRecord>,
 ) => {
   try {
     const docMap = new Map(documents.map((d) => [d.id, d]));
