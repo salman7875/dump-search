@@ -1,5 +1,6 @@
 import db from '../../libs/schema/db.js';
 import { quicker } from '../../utils/quicker.js';
+import { ScorePayload, VocabPayload } from './upload.types.js';
 
 const calculateDocFrequency = (
   data: string[],
@@ -52,25 +53,13 @@ const calculateIdfScore = (
   }
 };
 
-/**
- *
- * @param {*} data
- * @param {*} docIds
- * @returns { scoreMap }
- */
 const calculateScore = (
   data: string[],
   processedTokens: string[][],
   docIds: number[],
-): Map<
-  string,
-  { tokenId: number; docId: number; tfScore: number; position: number[] }
-> => {
+): Map<string, ScorePayload> => {
   try {
-    const scoreMap = new Map<
-      string,
-      { tokenId: number; docId: number; tfScore: number; position: number[] }
-    >();
+    const scoreMap = new Map<string, ScorePayload>();
 
     const vocabs: { id: number; token: string }[] = db
       .prepare(`SELECT id, token FROM vocabulary`)
@@ -123,11 +112,6 @@ const calculateScore = (
   }
 };
 
-/**
- *
- * @param {*} data
- * @returns { docData: data[], docIds: number[] }
- */
 const storeDocData = (
   data: string,
 ): { docData: string[]; docIds: number[] } => {
@@ -164,23 +148,13 @@ const storeDocData = (
   }
 };
 
-/**
- *
- * @param {*} data
- * @param {*} idfScore
- * @returns { null }
- */
 const storeTokens = (
   data: string[],
   processedTokens: string[][],
   idfScore: Map<string, number>,
 ) => {
   try {
-    const results: {
-      token: string;
-      phonetic_token: string;
-      alt_phonetic_token: string;
-    }[] = [];
+    const results: VocabPayload[] = [];
     const seen = new Set<string>();
 
     for (const [i, d] of data.entries()) {
@@ -218,25 +192,17 @@ const storeTokens = (
       `,
     );
 
-    const insertMany = db.transaction(
-      (
-        results: {
-          token: string;
-          phonetic_token: string;
-          alt_phonetic_token: string;
-        }[],
-      ) => {
-        for (const result of results) {
-          const { token, phonetic_token, alt_phonetic_token } = result;
-          insertVocab.run([
-            token,
-            phonetic_token,
-            alt_phonetic_token,
-            idfScore.get(token),
-          ]);
-        }
-      },
-    );
+    const insertMany = db.transaction((results: VocabPayload[]) => {
+      for (const result of results) {
+        const { token, phonetic_token, alt_phonetic_token } = result;
+        insertVocab.run([
+          token,
+          phonetic_token,
+          alt_phonetic_token,
+          idfScore.get(token),
+        ]);
+      }
+    });
 
     insertMany(results);
   } catch (error: unknown) {
@@ -249,22 +215,7 @@ const storeTokens = (
   }
 };
 
-/**
- *
- * @param {*} scoreMap
- * @returns {null}
- */
-const storeScores = (
-  scoreMap: Map<
-    string,
-    {
-      tokenId: number;
-      docId: number;
-      tfScore: number;
-      position: number[];
-    }
-  >,
-) => {
+const storeScores = (scoreMap: Map<string, ScorePayload>) => {
   try {
     const instace = db.prepare(
       `INSERT INTO scores (token_id, doc_id, tf_score, position) VALUES (?, ?, ?, ?)`,
