@@ -1,48 +1,48 @@
-import { ShieldCheck } from "lucide-react";
-import type { RetreiveResult } from "../../types/retreive.type";
 import ResultItem from "./result-item";
-
-const mockResults: RetreiveResult[] = [
-  {
-    id: "1",
-    title: "Mastering React 19 Server Components: Production Architecture",
-    url: "https://nextjs.org/docs/app/building-your-application/rendering/server-components",
-    displayUrl: "nextjs.org › docs › building-your-application",
-    snippet:
-      "Dive deep into the architectural paradigms of React 19 Server Components (RSC). Learn how to optimize data fetching layers, manage asynchronous data caching boundaries, and serialize properties without inflating client-side bundle payloads.",
-    updatedAt: "2 weeks ago",
-    category: "Documentation",
-    tags: ["React 19", "RSC", "Next.js"],
-  },
-  {
-    id: "2",
-    title: "The Ultimate Guide to Async Actions and Form Handling in React 19",
-    url: "https://react.dev/reference/react/useActionState",
-    displayUrl: "react.dev › reference › react › useActionState",
-    snippet:
-      "Explore the new architectural hooks in React 19. A detailed breakdown of useActionState, useFormStatus, and optimal implementation of transition elements to elevate UI state tracking natively without third-party libraries.",
-    updatedAt: "May 2026",
-    category: "Reference",
-  },
-  {
-    id: "3",
-    title:
-      "Performance Benchmarks: Client Rendering vs. React Server Components",
-    url: "https://vercel.com/blog/react-19-rsc-performance-benchmarks",
-    displayUrl: "vercel.com › blog › react-19-rsc-performance",
-    snippet:
-      "Empirical analysis tracking Total Blocking Time (TBT), First Contentful Paint (FCP), and Cumulative Layout Shift (CLS) comparing modular SPA apps against streaming React Server Components in high-concurrency environments.",
-    updatedAt: "3 days ago",
-    category: "Analysis",
-    tags: ["Performance", "Web-Vitals"],
-  },
-];
+import { useEffect, useState } from "react";
+import { useSearch } from "../../context/search-context";
+import { API } from "../../api/api";
+import type { RetrieveData } from "../../types/api.types";
 
 const ResultList = () => {
+  const [data, setData] = useState<RetrieveData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { search } = useSearch();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        if (!search) return;
+        const res = await API.getResult(search);
+        if (!res.success) {
+          throw new Error(res?.message ?? "Something went wrong!");
+        }
+        setData(res.data as RetrieveData[]);
+      } catch (error) {
+        // @ts-ignore
+        setError((error?.message as string) || "Something went wrong!");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [search]);
+
+  if (isLoading) {
+    return <p>Loading...</p>;
+  }
+
+  if (error) {
+    return <p className="text-red-500 text-center">{error}</p>;
+  }
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
       <div className="space-y-10">
-        {mockResults.map((result: RetreiveResult) => (
+        {data.map((result: RetrieveData) => (
           <ResultItem result={result} />
         ))}
       </div>

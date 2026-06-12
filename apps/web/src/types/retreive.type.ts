@@ -1,9 +1,8 @@
 export interface RetreiveResult {
   id: string;
   title: string;
-  url: string;
-  displayUrl: string;
-  snippet: string;
+  url?: string;
+  content?: string;
   updatedAt: string;
   category?: string;
   tags?: string[];

@@ -126,7 +126,9 @@ const weightingAndMergingDocs = (
   vocabMap: Map<number, VocabularyRecord>,
 ) => {
   try {
-    const docMap = new Map(documents.map((d) => [d.id, d]));
+    const docMap = new Map(
+      documents.map((d) => [d.id, { ...d, title: d.content.substring(0, 10) }]),
+    );
     const docRankingMap = new Map<
       number,
       {

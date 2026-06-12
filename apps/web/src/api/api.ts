@@ -3,9 +3,10 @@ import { handleAPIError } from "../utils/error";
 
 const API_URL = "http://localhost:3000";
 
-const getResult = async (q: string): Promise<APIResponse<RetrieveData>> => {
+const getResult = async (q: string): Promise<APIResponse<RetrieveData[]>> => {
   try {
-    const res = await fetch(`${API_URL}/doc/retrieve?query=${q}`);
+    const encodedQuery = encodeURIComponent(q);
+    const res = await fetch(`${API_URL}/doc/retrieve?query=${encodedQuery}`);
 
     if (!res.ok) {
       const errorText = await res
@@ -14,7 +15,7 @@ const getResult = async (q: string): Promise<APIResponse<RetrieveData>> => {
       throw new Error(`Server Error (${res.status}): ${errorText}`);
     }
 
-    const resData: APIResponse<RetrieveData> = await res.json();
+    const resData: APIResponse<RetrieveData[]> = await res.json();
 
     if (!resData.success) {
       throw new Error(resData.message ?? "Failed to fetch response");
