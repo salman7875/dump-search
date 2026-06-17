@@ -231,3 +231,42 @@ FILE PROCESSED: document-1781092671183-428957769.txt
 ⏱️  6. Calculate Search Scores     : 0.224 seconds
 ⏱️  7. Database: Store Scores      : 0.573 seconds
 ==================================================
+
+==================================================
+BENCHMARK RUN: 6/17/2026, 4:50:59 PM
+FILE PROCESSED: document-1781695220780-267336843.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.235 seconds
+⏱️  2. Store Doc Data Structure    : 0.181 seconds
+⏱️  3. Calculate Doc Frequency     : 17.600 seconds
+⏱️  4. Calculate IDF Scores        : 0.052 seconds
+⏱️  5. Database: Store Tokens      : 7.775 seconds
+⏱️  6. Calculate Search Scores     : 4.223 seconds
+⏱️  7. Database: Store Scores      : 8.573 seconds
+==================================================
+
+==================================================
+BENCHMARK RUN: 6/17/2026, 4:54:58 PM
+FILE PROCESSED: document-1781695462212-524111873.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.238 seconds
+⏱️  2. Store Doc Data Structure    : 0.177 seconds
+⏱️  3. Calculate Doc Frequency     : 17.052 seconds
+⏱️  4. Calculate IDF Scores        : 0.050 seconds
+⏱️  5. Database: Store Tokens      : 6.945 seconds
+⏱️  6. Calculate Search Scores     : 3.871 seconds
+⏱️  7. Database: Store Scores      : 8.071 seconds
+==================================================
+
+==================================================
+BENCHMARK RUN: 6/17/2026, 6:23:08 PM
+FILE PROCESSED: document-1781700751119-647968459.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.257 seconds
+⏱️  2. Store Doc Data Structure    : 0.176 seconds
+⏱️  3. Calculate Doc Frequency     : 16.899 seconds
+⏱️  4. Calculate IDF Scores        : 0.053 seconds
+⏱️  5. Database: Store Tokens      : 7.089 seconds
+⏱️  6. Calculate Search Scores     : 4.017 seconds
+⏱️  7. Database: Store Scores      : 8.336 seconds
+==================================================

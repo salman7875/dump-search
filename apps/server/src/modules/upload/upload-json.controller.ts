@@ -2,15 +2,15 @@ import db from '../../libs/schema/db.js';
 import { quicker } from '../../utils/quicker.js';
 import { ScorePayload, VocabPayload } from './upload.types.js';
 
-const calculateDocFrequency = (
-  data: string[],
+const calculateDocFrequencyJSON = (
+  data: { id: string; title: string; text: string }[],
 ): { docFrequency: Map<string, number>; processedToken: string[][] } => {
   try {
     const docFrequency = new Map<string, number>();
     const processedToken: string[][] = [];
 
     for (const d of data) {
-      const tokens: string[] = quicker.processText(d);
+      const tokens: string[] = quicker.processText(d.text);
       processedToken.push(tokens);
 
       const uniqueTokensInDoc = new Set(tokens);
@@ -31,8 +31,8 @@ const calculateDocFrequency = (
   }
 };
 
-const calculateIdfScore = (
-  data: string[],
+const calculateIdfScoreJSON = (
+  data: { id: string; title: string; text: string }[],
   docFrequency: Map<string, number>,
 ): Map<string, number> => {
   try {
@@ -53,8 +53,8 @@ const calculateIdfScore = (
   }
 };
 
-const calculateScore = (
-  data: string[],
+const calculateScoreJSON = (
+  data: { id: string; title: string; text: string }[],
   processedTokens: string[][],
   docIds: number[],
 ): Map<string, ScorePayload> => {
@@ -80,7 +80,7 @@ const calculateScore = (
         if (localTF.has(token)) {
           localTF.set(token, localTF.get(token) + 1);
         } else {
-          localTF.set(token, 0);
+          localTF.set(token, 1);
         }
       }
 
@@ -112,44 +112,40 @@ const calculateScore = (
   }
 };
 
-const storeDocData = (
-  data: string,
-): { docData: string[]; docIds: number[] } => {
+const storeDocDataJSON = (
+  data: { id: string; title: string; text: string }[],
+) => {
   try {
-    const docData: string[] = data.split('\n\n');
     const docIds: number[] = [];
 
     const insertDoc = db.prepare<[string, string, number], { id: number }>(
       `INSERT INTO docs (title, content, total_token) 
-         VALUES (?, ?, ?) 
-         ON CONFLICT(title) DO UPDATE SET content=excluded.content 
-         RETURNING id;`,
+      VALUES (?, ?, ?) 
+      ON CONFLICT(title) DO UPDATE SET content=excluded.content 
+      RETURNING id;`,
     );
 
-    const insertMany = db.transaction((docData: string[]) => {
-      for (let i = 0; i < docData.length; i++) {
-        const doc = docData[i]!;
-        const title = `Document ${i + 1}`;
-        const result = insertDoc.get(title, doc, doc.length);
-        docIds.push(result!.id);
-      }
-    });
+    const insertMany = db.transaction(
+      (data: { id: string; title: string; text: string }[]) => {
+        for (let i = 0; i < data.length; i++) {
+          const doc = data[i]!;
+          const result = insertDoc.get(doc.title, doc.text, doc.text?.length);
+          docIds.push(result!.id);
+        }
+      },
+    );
 
-    insertMany(docData);
+    insertMany(data);
 
-    return { docData, docIds };
+    return { docData: data, docIds };
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(`Error in (StoreDocData): ${error.message}`);
-    } else {
-      console.error(error);
-    }
+    console.log(error);
     throw error;
   }
 };
 
-const storeTokens = (
-  data: string[],
+const storeTokensJSON = (
+  data: { id: string; title: string; text: string }[],
   processedTokens: string[][],
   idfScore: Map<string, number>,
 ) => {
@@ -161,7 +157,7 @@ const storeTokens = (
       const proccesedToken = processedTokens[i] as string[];
 
       const phoneticToken: string[][] = quicker.processPhonetic(
-        d,
+        d.text,
       ) as string[][];
 
       const minLen = Math.min(proccesedToken.length, phoneticToken.length);
@@ -215,11 +211,43 @@ const storeTokens = (
   }
 };
 
-export const uploadService = {
-  calculateDocFrequency,
-  calculateIdfScore,
-  calculateScore,
+const storeScores = (scoreMap: Map<string, ScorePayload>) => {
+  try {
+    const instace = db.prepare(
+      `INSERT INTO scores (token_id, doc_id, tf_score, position) VALUES (?, ?, ?, ?)`,
+    );
 
-  storeDocData,
-  storeTokens,
+    const insertMany = db.transaction((scores) => {
+      for (const [key, value] of scores) {
+        const payload = [
+          value.tokenId,
+          value.docId,
+          value.tfScore,
+          Buffer.from(JSON.stringify(value.position)),
+        ];
+
+        instace.run(payload);
+      }
+    });
+
+    insertMany(scoreMap.entries());
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error in (storeScores): ${error.message}`);
+    } else {
+      console.error(error);
+    }
+    throw error;
+  }
+};
+
+export const uploadServiceJSON = {
+  storeScores,
+
+  calculateDocFrequencyJSON,
+  calculateIdfScoreJSON,
+  calculateScoreJSON,
+
+  storeDocDataJSON,
+  storeTokensJSON,
 };
