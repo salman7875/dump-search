@@ -24,8 +24,9 @@ const processPhonetic = (text: string): string[][] => {
     const dm = new natural.DoubleMetaphone();
     const tokens = tokenizer.tokenize(text);
     const cleanedTokens = removeStopWords(tokens);
+    const stemmedTokens = stemTokens(cleanedTokens);
 
-    return cleanedTokens.map((token) => dm.process(token, 3));
+    return stemmedTokens.map((token) => dm.process(token, 3));
   } catch (error) {
     console.log(error);
     throw error;

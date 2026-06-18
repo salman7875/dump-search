@@ -159,7 +159,7 @@ const uploadDoc = async (req: Request, res: Response) => {
     performance.mark('storing-doc-data-end');
 
     performance.mark('calculating-doc-freq-start');
-    const { docFrequency, processedToken } =
+    const { docFrequency, processedToken, processedTitleTokens } =
       uploadServiceJSON.calculateDocFrequencyJSON(docData);
 
     performance.mark('calculating-doc-freq-end');
@@ -180,6 +180,7 @@ const uploadDoc = async (req: Request, res: Response) => {
       docData,
       processedToken,
       docIds,
+      processedTitleTokens,
     );
     performance.mark('calculating-score-end');
 

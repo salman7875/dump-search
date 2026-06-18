@@ -270,3 +270,29 @@ FILE PROCESSED: document-1781700751119-647968459.json
 ⏱️  6. Calculate Search Scores     : 4.017 seconds
 ⏱️  7. Database: Store Scores      : 8.336 seconds
 ==================================================
+
+==================================================
+BENCHMARK RUN: 6/18/2026, 10:31:26 AM
+FILE PROCESSED: document-1781758834077-439463039.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.224 seconds
+⏱️  2. Store Doc Data Structure    : 0.168 seconds
+⏱️  3. Calculate Doc Frequency     : 17.172 seconds
+⏱️  4. Calculate IDF Scores        : 0.054 seconds
+⏱️  5. Database: Store Tokens      : 22.192 seconds
+⏱️  6. Calculate Search Scores     : 4.030 seconds
+⏱️  7. Database: Store Scores      : 8.544 seconds
+==================================================
+
+==================================================
+BENCHMARK RUN: 6/18/2026, 12:28:14 PM
+FILE PROCESSED: document-1781765839895-529798230.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.226 seconds
+⏱️  2. Store Doc Data Structure    : 0.205 seconds
+⏱️  3. Calculate Doc Frequency     : 17.341 seconds
+⏱️  4. Calculate IDF Scores        : 0.050 seconds
+⏱️  5. Database: Store Tokens      : 22.617 seconds
+⏱️  6. Calculate Search Scores     : 5.222 seconds
+⏱️  7. Database: Store Scores      : 8.710 seconds
+==================================================

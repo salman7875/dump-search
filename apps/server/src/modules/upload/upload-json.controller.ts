@@ -4,14 +4,22 @@ import { ScorePayload, VocabPayload } from './upload.types.js';
 
 const calculateDocFrequencyJSON = (
   data: { id: string; title: string; text: string }[],
-): { docFrequency: Map<string, number>; processedToken: string[][] } => {
+): {
+  docFrequency: Map<string, number>;
+  processedToken: string[][];
+  processedTitleTokens: string[][];
+} => {
   try {
     const docFrequency = new Map<string, number>();
     const processedToken: string[][] = [];
+    const processedTitleTokens: string[][] = [];
 
     for (const d of data) {
       const tokens: string[] = quicker.processText(d.text);
-      processedToken.push(tokens);
+      const titleTokens: string[] = quicker.processText(d.title);
+
+      processedTitleTokens.push(titleTokens);
+      processedToken.push([...titleTokens.map((t) => `${t}-title`), ...tokens]);
 
       const uniqueTokensInDoc = new Set(tokens);
 
@@ -20,7 +28,7 @@ const calculateDocFrequencyJSON = (
       }
     }
 
-    return { docFrequency, processedToken };
+    return { docFrequency, processedToken, processedTitleTokens };
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error(`Error in (calculateDocFrequency): ${error.message}`);
@@ -57,6 +65,7 @@ const calculateScoreJSON = (
   data: { id: string; title: string; text: string }[],
   processedTokens: string[][],
   docIds: number[],
+  processedTitleTokens: string[][],
 ): Map<string, ScorePayload> => {
   try {
     const scoreMap = new Map<string, ScorePayload>();
@@ -73,6 +82,7 @@ const calculateScoreJSON = (
       const docId = docIds[i];
       const localTF = new Map();
       const processedToken: string[] = processedTokens[i] as string[];
+      const processedTitleToken: string[] = processedTitleTokens[i] as string[];
 
       let count = 0;
 
@@ -85,15 +95,16 @@ const calculateScoreJSON = (
       }
 
       for (const token of processedToken) {
+        const tfScore = token.endsWith('-title')
+          ? +Number(localTF.get(token) / processedTitleToken.length).toFixed(3)
+          : +Number(localTF.get(token) / processedToken.length).toFixed(3);
         if (scoreMap.has(`${token}::${docId}`)) {
           scoreMap.get(`${token}::${docId}`)?.position.push(count);
         } else {
           scoreMap.set(`${token}::${docId}`, {
             tokenId: vocabMap.get(token) as number,
             docId: docId as number,
-            tfScore: +Number(
-              localTF.get(token) / processedToken.length,
-            ).toFixed(3),
+            tfScore: tfScore,
             position: [count],
           });
         }
@@ -154,16 +165,20 @@ const storeTokensJSON = (
     const seen = new Set<string>();
 
     for (const [i, d] of data.entries()) {
+      const phoneticTokens: string[][] = [];
       const proccesedToken = processedTokens[i] as string[];
 
       const phoneticToken: string[][] = quicker.processPhonetic(
         d.text,
       ) as string[][];
+      const phoneticTitleToken: string[][] = quicker.processPhonetic(d.title);
 
-      const minLen = Math.min(proccesedToken.length, phoneticToken.length);
+      phoneticTokens.push(...phoneticTitleToken, ...phoneticToken);
+
+      const minLen = Math.min(proccesedToken.length, phoneticTokens.length);
       for (let i = 0; i < minLen; i++) {
         const token: string = proccesedToken[i] as string;
-        const currentPhonetic = phoneticToken[i];
+        const currentPhonetic = phoneticTokens[i];
 
         if (!currentPhonetic) continue;
         const phonetic_token: string = currentPhonetic[0] as string;
