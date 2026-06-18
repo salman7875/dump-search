@@ -104,7 +104,6 @@ const weightingAndMergingDocs = (
         ? JSON.parse(score.position.toString('utf-8'))
         : [];
 
-      // Accumulate standard matching weights
       docRankData.totalScore += score.tf_score * vocab.idf_score;
       docRankData.matchedLiteralToken.add(vocab.token.toLowerCase());
       docRankData.matchedPhoneticToken.add(vocab.phonetic_token.toLowerCase());
@@ -119,14 +118,12 @@ const weightingAndMergingDocs = (
         const currentToken = processedTokens[i]!.toLowerCase();
         const nextToken = processedTokens[i + 1]!.toLowerCase();
 
-        // Fix 1: Check title matches safely
         if (doc.matchedLiteralToken.has(`${currentToken}-title`)) {
-          doc.titleMatchBonus = 25; // Elevated title reward
+          doc.titleMatchBonus = 25;
         }
 
         if (currentToken === nextToken) continue;
 
-        // Fix 2: Resolve Phrase/Proximity Failure across Title and Body boundaries
         const pos1 =
           doc.tokenPosition.get(currentToken) ||
           doc.tokenPosition.get(`${currentToken}-title`);
@@ -139,7 +136,6 @@ const weightingAndMergingDocs = (
           for (const p1 of pos1) {
             for (const p2 of pos2) {
               const distance = p2 - p1;
-              // Snaps clean structural token differences up to 50 spaces
               if (distance > 0 && distance < minPairDistance && distance < 50) {
                 minPairDistance = distance;
               }
@@ -158,43 +154,31 @@ const weightingAndMergingDocs = (
       if (pairsCompared > 0 && totalDistance > 0) {
         proximityScore = (pairsCompared * 100) / totalDistance;
         const avgDistance = totalDistance / pairsCompared;
-        proximityBoost += 12 / (1.5 + Math.log(avgDistance)); // Aggressive tight-phrase curve
+        proximityBoost += 12 / (1.5 + Math.log(avgDistance));
       }
 
-      // Hard penalty for scattered or backward token arrays
       if (totalDistance >= 1000) {
         proximityBoost *= 0.4;
       }
 
-      // Fix 3: Global Length Normalization to neutralize 59k word document biases
-      // --- FIX: RE-BALANCED SCORING ENGINE ---
-
-      // 1. Calculate an industry-standard length penalty factor.
-      // Instead of raw division, we cushion the length against an average document baseline (e.g., 1000 tokens).
       const docLength = Number(doc.docs?.total_token) || 1;
       const baselineLength = 1000;
 
-      // If a document is 59,000 words, this factor is ~7.6. If it's 358 words, it's ~0.6.
       const lengthFactor = Math.sqrt(docLength / baselineLength);
 
-      // Apply length compensation safely to the accumulated TF-IDF score
       const normalizedTfIdf =
         lengthFactor > 1
-          ? Number(doc.totalScore) / lengthFactor // Penalize giant documents
-          : Number(doc.totalScore) * (1 + (1 - lengthFactor) * 0.5); // Gently reward highly concise documents
+          ? Number(doc.totalScore) / lengthFactor
+          : Number(doc.totalScore) * (1 + (1 - lengthFactor) * 0.5);
 
-      // 2. Turn the unique token matches into a percentage reward rather than an overriding baseline addition.
-      // This ensures that documents matching MORE of the user's search words get a percentage boost.
       const totalQueryTokens = processedTokens.length || 1;
       const matchCoverageRatio =
         doc.matchedPhoneticToken.size / totalQueryTokens;
-      const coverageBonus = matchCoverageRatio * 10; // Max 10 point reward for matching the whole phrase
+      const coverageBonus = matchCoverageRatio * 10;
 
-      // 3. Aggregate base score
       const baseScore =
         normalizedTfIdf + coverageBonus + (doc.titleMatchBonus || 0);
 
-      // 4. Apply Proximity Boost
       const finalScore = baseScore * proximityBoost;
 
       return {
@@ -206,7 +190,6 @@ const weightingAndMergingDocs = (
       };
     });
 
-    // Re-sort elements safely against updated scores
     return finalResults.sort((a, b) => b.finalScore - a.finalScore);
   } catch (error) {
     console.error(`Error in weightingAndMergingDocs:`, error);

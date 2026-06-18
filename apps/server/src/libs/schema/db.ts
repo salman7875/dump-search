@@ -33,6 +33,8 @@ const createSchema = `
     FOREIGN KEY (token_id) REFERENCES vocabulary(id),
     FOREIGN KEY (doc_id) REFERENCES docs(id)
   );
+
+  CREATE INDEX IF NOT EXISTS idx_vocabulary_phonetic ON vocabulary(phonetic_token);
 `;
 
 db.exec(createSchema);

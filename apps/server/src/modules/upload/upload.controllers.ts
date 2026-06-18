@@ -5,7 +5,7 @@ import { performance } from 'perf_hooks';
 
 import { uploadService } from './upload.services.js';
 import type { Request, Response } from 'express';
-import { uploadServiceJSON } from './upload-json.controller.js';
+import { uploadServiceJSON } from './upload-json.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = __filename.substring(0, __filename.lastIndexOf('/'));

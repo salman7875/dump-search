@@ -102,7 +102,6 @@ const calculateScoreJSON = (
           ? processedTitleToken.length
           : processedToken.length;
 
-        // Balanced Squashed Magnitude length normalization
         const denominator = Math.sqrt(docLength || 1);
         const tfScore = +Number(logTF / denominator).toFixed(3);
 
