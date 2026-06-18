@@ -8,6 +8,7 @@ export type VocabularyRecord = {
 
 export type DocumentRecord = {
   id: number;
+  title: string;
   content: string;
   total_token: number;
 };

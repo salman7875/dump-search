@@ -348,3 +348,94 @@ FILE PROCESSED: document-1781772158820-104419366.json
 ⏱️  6. Calculate Search Scores     : 4.584 seconds
 ⏱️  7. Database: Store Scores      : 7.879 seconds
 ==================================================
+
+==================================================
+BENCHMARK RUN: 6/18/2026, 2:39:55 PM
+FILE PROCESSED: document-1781773756990-48907729.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.243 seconds
+⏱️  2. Store Doc Data Structure    : 0.178 seconds
+⏱️  3. Calculate Doc Frequency     : 17.165 seconds
+⏱️  4. Calculate IDF Scores        : 0.054 seconds
+⏱️  5. Database: Store Tokens      : 7.082 seconds
+⏱️  6. Calculate Search Scores     : 4.592 seconds
+⏱️  7. Database: Store Scores      : 8.752 seconds
+==================================================
+
+==================================================
+BENCHMARK RUN: 6/18/2026, 3:24:49 PM
+FILE PROCESSED: document-1781776451087-362506581.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.210 seconds
+⏱️  2. Store Doc Data Structure    : 0.175 seconds
+⏱️  3. Calculate Doc Frequency     : 17.929 seconds
+⏱️  4. Calculate IDF Scores        : 0.056 seconds
+⏱️  5. Database: Store Tokens      : 6.928 seconds
+⏱️  6. Calculate Search Scores     : 3.669 seconds
+⏱️  7. Database: Store Scores      : 9.361 seconds
+==================================================
+
+==================================================
+BENCHMARK RUN: 6/18/2026, 3:39:30 PM
+FILE PROCESSED: document-1781777332389-527018469.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.265 seconds
+⏱️  2. Store Doc Data Structure    : 0.203 seconds
+⏱️  3. Calculate Doc Frequency     : 17.922 seconds
+⏱️  4. Calculate IDF Scores        : 0.054 seconds
+⏱️  5. Database: Store Tokens      : 7.166 seconds
+⏱️  6. Calculate Search Scores     : 3.329 seconds
+⏱️  7. Database: Store Scores      : 9.158 seconds
+==================================================
+
+==================================================
+BENCHMARK RUN: 6/18/2026, 4:25:19 PM
+FILE PROCESSED: document-1781780080666-286964444.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.264 seconds
+⏱️  2. Store Doc Data Structure    : 0.235 seconds
+⏱️  3. Calculate Doc Frequency     : 17.674 seconds
+⏱️  4. Calculate IDF Scores        : 0.051 seconds
+⏱️  5. Database: Store Tokens      : 7.445 seconds
+⏱️  6. Calculate Search Scores     : 3.774 seconds
+⏱️  7. Database: Store Scores      : 9.397 seconds
+==================================================
+
+==================================================
+BENCHMARK RUN: 6/18/2026, 4:31:53 PM
+FILE PROCESSED: document-1781780475405-316848453.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.247 seconds
+⏱️  2. Store Doc Data Structure    : 0.191 seconds
+⏱️  3. Calculate Doc Frequency     : 17.650 seconds
+⏱️  4. Calculate IDF Scores        : 0.056 seconds
+⏱️  5. Database: Store Tokens      : 7.055 seconds
+⏱️  6. Calculate Search Scores     : 3.603 seconds
+⏱️  7. Database: Store Scores      : 8.821 seconds
+==================================================
+
+==================================================
+BENCHMARK RUN: 6/18/2026, 4:33:54 PM
+FILE PROCESSED: document-1781780596526-859371122.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.247 seconds
+⏱️  2. Store Doc Data Structure    : 0.203 seconds
+⏱️  3. Calculate Doc Frequency     : 17.591 seconds
+⏱️  4. Calculate IDF Scores        : 0.058 seconds
+⏱️  5. Database: Store Tokens      : 7.088 seconds
+⏱️  6. Calculate Search Scores     : 3.455 seconds
+⏱️  7. Database: Store Scores      : 8.814 seconds
+==================================================
+
+==================================================
+BENCHMARK RUN: 6/18/2026, 4:45:48 PM
+FILE PROCESSED: document-1781781287893-211003669.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.275 seconds
+⏱️  2. Store Doc Data Structure    : 0.570 seconds
+⏱️  3. Calculate Doc Frequency     : 22.244 seconds
+⏱️  4. Calculate IDF Scores        : 0.063 seconds
+⏱️  5. Database: Store Tokens      : 24.715 seconds
+⏱️  6. Calculate Search Scores     : 4.132 seconds
+⏱️  7. Database: Store Scores      : 8.378 seconds
+==================================================

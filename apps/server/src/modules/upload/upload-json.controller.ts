@@ -4,40 +4,37 @@ import { ScorePayload, VocabPayload } from './upload.types.js';
 
 const calculateDocFrequencyJSON = (
   data: { id: string; title: string; text: string }[],
-): {
-  docFrequency: Map<string, number>;
-  processedToken: string[][];
-  processedTitleTokens: string[][];
-} => {
+) => {
   try {
     const docFrequency = new Map<string, number>();
-    const processedToken: string[][] = [];
-    const processedTitleTokens: string[][] = [];
+    const processedTokensList: string[][] = [];
+    const processedTitleTokensList: string[][] = [];
 
     for (const d of data) {
-      const tokens: string[] = quicker.processText(d.text);
-      const titleTokens: string[] = quicker.processText(d.title);
+      const bodyPipeline = quicker.processTextPipeline(d.text);
+      const titlePipeline = quicker.processTextPipeline(d.title);
 
-      processedTitleTokens.push(titleTokens);
-      processedToken.push([...titleTokens.map((t) => `${t}-title`), ...tokens]);
+      const titleTokens = titlePipeline.map((p) => `${p.literal}-title`);
+      const bodyTokens = bodyPipeline.map((p) => p.literal);
 
-      const uniqueTokensInDoc = new Set([
-        ...titleTokens.map((t) => `${t}-title`),
-        ...tokens,
-      ]);
+      processedTitleTokensList.push(titlePipeline.map((p) => p.literal));
 
+      const integratedTokens = [...titleTokens, ...bodyTokens];
+      processedTokensList.push(integratedTokens);
+
+      const uniqueTokensInDoc = new Set(integratedTokens);
       for (const token of uniqueTokensInDoc) {
         docFrequency.set(token, (docFrequency.get(token) || 0) + 1);
       }
     }
 
-    return { docFrequency, processedToken, processedTitleTokens };
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (calculateDocFrequency): ${error.message}`);
-    } else {
-      console.log(error);
-    }
+    return {
+      docFrequency,
+      processedToken: processedTokensList,
+      processedTitleTokens: processedTitleTokensList,
+    };
+  } catch (error) {
+    console.error(`Error in calculateDocFrequencyJSON:`, error);
     throw error;
   }
 };
@@ -48,18 +45,13 @@ const calculateIdfScoreJSON = (
 ): Map<string, number> => {
   try {
     const idfScore = new Map<string, number>();
-    const docLen = data.length;
+    const docLen = data.length || 1;
     for (const [token, count] of docFrequency.entries()) {
       idfScore.set(token, +Number(Math.log(docLen / count)).toFixed(3));
     }
-
     return idfScore;
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (calculteIdfScore): ${error.message}`);
-    } else {
-      console.error(error);
-    }
+  } catch (error) {
+    console.error(`Error in calculateIdfScoreJSON:`, error);
     throw error;
   }
 };
@@ -72,56 +64,59 @@ const calculateScoreJSON = (
 ): Map<string, ScorePayload> => {
   try {
     const scoreMap = new Map<string, ScorePayload>();
-
-    const vocabs: { id: number; token: string }[] = db
-      .prepare(`SELECT id, token FROM vocabulary`)
-      .all() as { id: number; token: string }[];
-
+    const vocabs = db.prepare(`SELECT id, token FROM vocabulary`).all() as {
+      id: number;
+      token: string;
+    }[];
     const vocabMap = new Map<string, number>(
-      vocabs.map((vocab) => [vocab.token, vocab.id]),
+      vocabs.map((v) => [v.token, v.id]),
     );
 
     for (let i = 0; i < data.length; i++) {
-      const docId = docIds[i];
-      const localTF = new Map();
-      const processedToken: string[] = processedTokens[i] as string[];
-      const processedTitleToken: string[] = processedTitleTokens[i] as string[];
+      const docId = docIds[i]!;
+      const processedToken = processedTokens[i] || [];
+      const processedTitleToken = processedTitleTokens[i] || [];
 
-      let count = 0;
+      const tokenMetaData = new Map<
+        string,
+        { count: number; position: number[] }
+      >();
+      let currentStringPos = 0;
 
       for (const token of processedToken) {
-        if (localTF.has(token)) {
-          localTF.set(token, localTF.get(token) + 1);
-        } else {
-          localTF.set(token, 1);
+        if (!tokenMetaData.has(token)) {
+          tokenMetaData.set(token, { count: 0, position: [] });
         }
+        const meta = tokenMetaData.get(token)!;
+        meta.count += 1;
+        meta.position.push(currentStringPos);
+        currentStringPos += token.replace(/-title$/, '').length + 1;
       }
 
-      for (const token of processedToken) {
-        const tfScore = token.endsWith('-title')
-          ? +Number(localTF.get(token) / processedTitleToken.length).toFixed(3)
-          : +Number(localTF.get(token) / processedToken.length).toFixed(3);
-        if (scoreMap.has(`${token}::${docId}`)) {
-          scoreMap.get(`${token}::${docId}`)?.position.push(count);
-        } else {
-          scoreMap.set(`${token}::${docId}`, {
-            tokenId: vocabMap.get(token) as number,
-            docId: docId as number,
-            tfScore: tfScore,
-            position: [count],
-          });
-        }
-        count += token.length + 1;
+      for (const [token, meta] of tokenMetaData.entries()) {
+        const vocabId = vocabMap.get(token);
+        if (!vocabId) continue;
+
+        const logTF = 1 + Math.log(meta.count);
+        const docLength = token.endsWith('-title')
+          ? processedTitleToken.length
+          : processedToken.length;
+
+        // Balanced Squashed Magnitude length normalization
+        const denominator = Math.sqrt(docLength || 1);
+        const tfScore = +Number(logTF / denominator).toFixed(3);
+
+        scoreMap.set(`${token}::${docId}`, {
+          tokenId: vocabId,
+          docId: docId,
+          tfScore,
+          position: meta.position,
+        });
       }
     }
-
     return scoreMap;
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (calculateScore): ${error.message}`);
-    } else {
-      console.error(error);
-    }
+  } catch (error) {
+    console.error(`Error in calculateScoreJSON:`, error);
     throw error;
   }
 };
@@ -131,29 +126,27 @@ const storeDocDataJSON = (
 ) => {
   try {
     const docIds: number[] = [];
-
-    const insertDoc = db.prepare<[string, string, number], { id: number }>(
-      `INSERT INTO docs (title, content, total_token) 
+    const insertDoc = db.prepare(`
+      INSERT INTO docs (title, content, total_token) 
       VALUES (?, ?, ?) 
-      ON CONFLICT(title) DO UPDATE SET content=excluded.content 
-      RETURNING id;`,
-    );
+      ON CONFLICT(title) DO UPDATE SET content=excluded.content, total_token=excluded.total_token
+      RETURNING id;
+    `);
 
-    const insertMany = db.transaction(
-      (data: { id: string; title: string; text: string }[]) => {
-        for (let i = 0; i < data.length; i++) {
-          const doc = data[i]!;
-          const result = insertDoc.get(doc.title, doc.text, doc.text?.length);
-          docIds.push(result!.id);
-        }
-      },
-    );
+    const insertMany = db.transaction((docsList) => {
+      for (const doc of docsList) {
+        const tokensCount = doc.text ? doc.text.split(/\s+/).length : 0;
+        const result = insertDoc.get(doc.title, doc.text, tokensCount) as {
+          id: number;
+        };
+        docIds.push(result.id);
+      }
+    });
 
     insertMany(data);
-
     return { docData: data, docIds };
   } catch (error) {
-    console.log(error);
+    console.error(`Error in storeDocDataJSON:`, error);
     throw error;
   }
 };
@@ -167,105 +160,99 @@ const storeTokensJSON = (
     const results: VocabPayload[] = [];
     const seen = new Set<string>();
 
-    for (const [i, d] of data.entries()) {
-      const phoneticTokens: string[][] = [];
-      const proccesedToken = processedTokens[i] as string[];
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i]!;
+      const titlePipeline = quicker.processTextPipeline(d.title);
+      const bodyPipeline = quicker.processTextPipeline(d.text);
 
-      const phoneticToken: string[][] = quicker.processPhonetic(
-        d.text,
-      ) as string[][];
-      const phoneticTitleToken: string[][] = quicker.processPhonetic(d.title);
-
-      phoneticTokens.push(...phoneticTitleToken, ...phoneticToken);
-
-      const minLen = Math.min(proccesedToken.length, phoneticTokens.length);
-      for (let i = 0; i < minLen; i++) {
-        const token: string = proccesedToken[i] as string;
-        const currentPhonetic = phoneticTokens[i];
-
-        if (!currentPhonetic) continue;
-        const phonetic_token: string = currentPhonetic[0] as string;
-        const alt_phonetic_token: string = currentPhonetic[1] as string;
-
-        const uniqueKey = `${token}-${phonetic_token}-${alt_phonetic_token}`;
-
+      // Store Title Tokens with their specific alignments
+      titlePipeline.forEach((p) => {
+        const tokenKey = `${p.literal}-title`;
+        const uniqueKey = `${tokenKey}::${p.phonetic}::${p.altPhonetic}`;
         if (!seen.has(uniqueKey)) {
           seen.add(uniqueKey);
-          results.push({ token, phonetic_token, alt_phonetic_token });
+          results.push({
+            token: tokenKey,
+            phonetic_token: p.phonetic,
+            alt_phonetic_token: p.altPhonetic,
+          });
         }
-      }
+      });
+
+      // Store Standard Body Tokens with aligned structural maps
+      bodyPipeline.forEach((p) => {
+        const uniqueKey = `${p.literal}::${p.phonetic}::${p.altPhonetic}`;
+        if (!seen.has(uniqueKey)) {
+          seen.add(uniqueKey);
+          results.push({
+            token: p.literal,
+            phonetic_token: p.phonetic,
+            alt_phonetic_token: p.altPhonetic,
+          });
+        }
+      });
     }
 
-    const insertVocab = db.prepare(
-      `INSERT INTO vocabulary (token, phonetic_token, alt_phonetic_token, idf_score) 
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(token) DO UPDATE SET
+    const insertVocab = db.prepare(`
+      INSERT INTO vocabulary (token, phonetic_token, alt_phonetic_token, idf_score) 
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(token) DO UPDATE SET
         phonetic_token = excluded.phonetic_token,
         alt_phonetic_token = excluded.alt_phonetic_token,
         idf_score = excluded.idf_score
-      `,
-    );
+    `);
 
-    const insertMany = db.transaction((results: VocabPayload[]) => {
-      for (const result of results) {
-        const { token, phonetic_token, alt_phonetic_token } = result;
+    const insertMany = db.transaction((vocabList: VocabPayload[]) => {
+      for (const item of vocabList) {
         insertVocab.run([
-          token,
-          phonetic_token,
-          alt_phonetic_token,
-          idfScore.get(token),
+          item.token,
+          item.phonetic_token || '',
+          item.alt_phonetic_token || '',
+          idfScore.get(item.token) || 0,
         ]);
       }
     });
 
     insertMany(results);
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (storeTokens): ${error.message}`);
-    } else {
-      console.log(error);
-    }
+  } catch (error) {
+    console.error(`Error in storeTokensJSON:`, error);
     throw error;
   }
 };
 
 const storeScores = (scoreMap: Map<string, ScorePayload>) => {
   try {
-    const instace = db.prepare(
-      `INSERT INTO scores (token_id, doc_id, tf_score, position) VALUES (?, ?, ?, ?)`,
-    );
+    const insertInstance = db.prepare(`
+      INSERT INTO scores (token_id, doc_id, tf_score, position) 
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(token_id, doc_id) DO UPDATE SET
+        tf_score = excluded.tf_score,
+        position = excluded.position
+    `);
 
-    const insertMany = db.transaction((scores) => {
-      for (const [key, value] of scores) {
-        const payload = [
+    const insertMany = db.transaction((entries) => {
+      for (const [_, value] of entries) {
+        insertInstance.run([
           value.tokenId,
           value.docId,
           value.tfScore,
           Buffer.from(JSON.stringify(value.position)),
-        ];
-
-        instace.run(payload);
+        ]);
       }
     });
 
     insertMany(scoreMap.entries());
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (storeScores): ${error.message}`);
-    } else {
-      console.error(error);
-    }
+  } catch (error) {
+    console.error(`Error in storeScores:`, error);
     throw error;
   }
 };
 
 export const uploadServiceJSON = {
   storeScores,
-
   calculateDocFrequencyJSON,
   calculateIdfScoreJSON,
   calculateScoreJSON,
-
   storeDocDataJSON,
   storeTokensJSON,
 };
