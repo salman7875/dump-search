@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { quicker } from '../../utils/quicker.js';
 import { retrieveService } from './retrieve.services.js';
+import { retrieveServiceJSON } from './retrieve-json.services.js';
 
 const getAllDocs = async (req: Request, res: Response) => {
   const { query } = req.query as { query: string };
@@ -10,12 +11,12 @@ const getAllDocs = async (req: Request, res: Response) => {
     const processedTokens = phoneticToken.map((token) => token[0]) as string[];
 
     const { vocabMap, tokenIds } =
-      retrieveService.getVocabFromToken(processedTokens);
+      retrieveServiceJSON.getVocabFromToken(processedTokens);
 
-    const { scoresRes, docIds } = retrieveService.getScores(tokenIds);
+    const { scoresRes, docIds } = retrieveServiceJSON.getScores(tokenIds);
 
-    const { docRes } = retrieveService.getDocs(docIds);
-    const result = retrieveService.weightingAndMergingDocs(
+    const { docRes } = retrieveServiceJSON.getDocs(docIds);
+    const result = retrieveServiceJSON.weightingAndMergingDocs(
       processedTokens,
       docRes,
       scoresRes,

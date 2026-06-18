@@ -21,7 +21,10 @@ const calculateDocFrequencyJSON = (
       processedTitleTokens.push(titleTokens);
       processedToken.push([...titleTokens.map((t) => `${t}-title`), ...tokens]);
 
-      const uniqueTokensInDoc = new Set(tokens);
+      const uniqueTokensInDoc = new Set([
+        ...titleTokens.map((t) => `${t}-title`),
+        ...tokens,
+      ]);
 
       for (const token of uniqueTokensInDoc) {
         docFrequency.set(token, (docFrequency.get(token) || 0) + 1);
