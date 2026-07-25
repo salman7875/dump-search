@@ -10,6 +10,17 @@ const calculateDocFrequencyJSON = (
     const processedTokensList: string[][] = [];
     const processedTitleTokensList: string[][] = [];
 
+    const unProcessedTokensList: {
+      literal: string;
+      phonetic: string;
+      altPhonetic: string;
+    }[][] = [];
+    const unProcessedTitleTokensList: {
+      literal: string;
+      phonetic: string;
+      altPhonetic: string;
+    }[][] = [];
+
     for (const d of data) {
       const bodyPipeline = quicker.processTextPipeline(d.text);
       const titlePipeline = quicker.processTextPipeline(d.title);
@@ -17,12 +28,16 @@ const calculateDocFrequencyJSON = (
       const titleTokens = titlePipeline.map((p) => `${p.literal}-title`);
       const bodyTokens = bodyPipeline.map((p) => p.literal);
 
+      unProcessedTokensList.push(bodyPipeline);
+      unProcessedTitleTokensList.push(titlePipeline);
+
       processedTitleTokensList.push(titlePipeline.map((p) => p.literal));
 
       const integratedTokens = [...titleTokens, ...bodyTokens];
       processedTokensList.push(integratedTokens);
 
       const uniqueTokensInDoc = new Set(integratedTokens);
+
       for (const token of uniqueTokensInDoc) {
         docFrequency.set(token, (docFrequency.get(token) || 0) + 1);
       }
@@ -32,6 +47,8 @@ const calculateDocFrequencyJSON = (
       docFrequency,
       processedToken: processedTokensList,
       processedTitleTokens: processedTitleTokensList,
+      unProcessedToken: unProcessedTokensList,
+      unProcessedTitleTokens: unProcessedTitleTokensList,
     };
   } catch (error) {
     console.error(`Error in calculateDocFrequencyJSON:`, error);
@@ -152,45 +169,82 @@ const storeDocDataJSON = (
 
 const storeTokensJSON = (
   data: { id: string; title: string; text: string }[],
-  processedTokens: string[][],
+  tokens: {
+    literal: string;
+    phonetic: string;
+    altPhonetic: string;
+  }[][],
+  titleToken: {
+    literal: string;
+    phonetic: string;
+    altPhonetic: string;
+  }[][],
   idfScore: Map<string, number>,
 ) => {
   try {
     const results: VocabPayload[] = [];
     const seen = new Set<string>();
 
-    for (let i = 0; i < data.length; i++) {
-      const d = data[i]!;
-      const titlePipeline = quicker.processTextPipeline(d.title);
-      const bodyPipeline = quicker.processTextPipeline(d.text);
+    titleToken.forEach((tokens) => {
+      tokens.forEach((token) => {
+        const key = `${token.literal}-title`;
+        const uniqueKey = `${key}::${token.phonetic}::${token.altPhonetic}`;
+        if (seen.has(uniqueKey)) return;
+        seen.add(uniqueKey);
 
-      // Store Title Tokens with their specific alignments
-      titlePipeline.forEach((p) => {
-        const tokenKey = `${p.literal}-title`;
-        const uniqueKey = `${tokenKey}::${p.phonetic}::${p.altPhonetic}`;
-        if (!seen.has(uniqueKey)) {
-          seen.add(uniqueKey);
-          results.push({
-            token: tokenKey,
-            phonetic_token: p.phonetic,
-            alt_phonetic_token: p.altPhonetic,
-          });
-        }
+        results.push({
+          token: token.literal,
+          phonetic_token: token.phonetic,
+          alt_phonetic_token: token.altPhonetic,
+        });
       });
+    });
 
-      // Store Standard Body Tokens with aligned structural maps
-      bodyPipeline.forEach((p) => {
-        const uniqueKey = `${p.literal}::${p.phonetic}::${p.altPhonetic}`;
-        if (!seen.has(uniqueKey)) {
-          seen.add(uniqueKey);
-          results.push({
-            token: p.literal,
-            phonetic_token: p.phonetic,
-            alt_phonetic_token: p.altPhonetic,
-          });
-        }
+    tokens.forEach((btokens) => {
+      btokens.forEach((token) => {
+        const uniqueKey = `${token.literal}::${token.phonetic}::${token.altPhonetic}`;
+        if (seen.has(uniqueKey)) return;
+        seen.add(uniqueKey);
+        results.push({
+          token: token.literal,
+          phonetic_token: token.phonetic,
+          alt_phonetic_token: token.altPhonetic,
+        });
       });
-    }
+    });
+
+    // for (let i = 0; i < data.length; i++) {
+    //   const d = data[i]!;
+    //   const titlePipeline = quicker.processTextPipeline(d.title);
+    //   const bodyPipeline = quicker.processTextPipeline(d.text);
+
+    //   // Store Title Tokens with their specific alignments
+    //   titlePipeline.forEach((p) => {
+    //     const tokenKey = `${p.literal}-title`;
+    //     const uniqueKey = `${tokenKey}::${p.phonetic}::${p.altPhonetic}`;
+    //     if (!seen.has(uniqueKey)) {
+    //       seen.add(uniqueKey);
+    //       results.push({
+    //         token: tokenKey,
+    //         phonetic_token: p.phonetic,
+    //         alt_phonetic_token: p.altPhonetic,
+    //       });
+    //     }
+    //   });
+
+    //   // Store Standard Body Tokens with aligned structural maps
+    //   bodyPipeline.forEach((p) => {
+    //     const uniqueKey = `${p.literal}::${p.phonetic}::${p.altPhonetic}`;
+    //     if (!seen.has(uniqueKey)) {
+    //       seen.add(uniqueKey);
+    //       results.push({
+    //         token: p.literal,
+    //         phonetic_token: p.phonetic,
+    //         alt_phonetic_token: p.altPhonetic,
+    //       });
+    //     }
+    //   });
+    // }
 
     const insertVocab = db.prepare(`
       INSERT INTO vocabulary (token, phonetic_token, alt_phonetic_token, idf_score) 

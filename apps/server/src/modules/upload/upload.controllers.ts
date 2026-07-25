@@ -159,8 +159,13 @@ const uploadDoc = async (req: Request, res: Response) => {
     performance.mark('storing-doc-data-end');
 
     performance.mark('calculating-doc-freq-start');
-    const { docFrequency, processedToken, processedTitleTokens } =
-      uploadServiceJSON.calculateDocFrequencyJSON(docData);
+    const {
+      docFrequency,
+      processedToken,
+      processedTitleTokens,
+      unProcessedTitleTokens,
+      unProcessedToken,
+    } = uploadServiceJSON.calculateDocFrequencyJSON(docData);
 
     performance.mark('calculating-doc-freq-end');
 
@@ -172,7 +177,12 @@ const uploadDoc = async (req: Request, res: Response) => {
     performance.mark('calculating-idf-score-end');
 
     performance.mark('storing-token-start');
-    uploadServiceJSON.storeTokensJSON(docData, processedToken, idfScore);
+    uploadServiceJSON.storeTokensJSON(
+      docData,
+      unProcessedToken,
+      unProcessedTitleTokens,
+      idfScore,
+    );
     performance.mark('storing-token-end');
 
     performance.mark('calculating-score-start');

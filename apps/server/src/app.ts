@@ -4,6 +4,7 @@ import cors from 'cors';
 // import { uploadRoutes } from "./modules/upload/index.ts";
 // import { retrieveRoutes } from "./modules/retrieve/index.js";
 import db from './libs/schema/db.js';
+
 import { uploadRoutes } from './modules/upload/index.js';
 import { retrieveRoutes } from './modules/retrieve/index.js';
 

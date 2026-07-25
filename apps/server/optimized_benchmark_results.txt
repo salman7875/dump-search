@@ -439,3 +439,16 @@ FILE PROCESSED: document-1781781287893-211003669.json
 ⏱️  6. Calculate Search Scores     : 4.132 seconds
 ⏱️  7. Database: Store Scores      : 8.378 seconds
 ==================================================
+
+==================================================
+BENCHMARK RUN: 7/25/2026, 3:36:45 PM
+FILE PROCESSED: document-1784973965346-18140152.json
+--------------------------------------------------
+⏱️  1. Read File From Disk         : 0.225 seconds
+⏱️  2. Store Doc Data Structure    : 0.519 seconds
+⏱️  3. Calculate Doc Frequency     : 23.382 seconds
+⏱️  4. Calculate IDF Scores        : 0.064 seconds
+⏱️  5. Database: Store Tokens      : 1.812 seconds
+⏱️  6. Calculate Search Scores     : 4.582 seconds
+⏱️  7. Database: Store Scores      : 9.107 seconds
+==================================================
