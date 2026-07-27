@@ -8,6 +8,7 @@ RUN turbo prune --scope=@search/backend --docker --out-dir=json-pruned
 # STAGE 2
 FROM node:20-alpine AS base
 WORKDIR /monorepo
+RUN apk add --no-cache python3 make g++
 
 # STAGE 3
 FROM base AS builder
