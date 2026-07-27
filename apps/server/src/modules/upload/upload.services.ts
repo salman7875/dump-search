@@ -10,6 +10,7 @@ const calculateDocFrequency = (
     const processedToken: string[][] = [];
 
     for (const d of data) {
+      // @ts-ignore
       const tokens: string[] = quicker.processText(d);
       processedToken.push(tokens);
 
@@ -159,7 +160,7 @@ const storeTokens = (
 
     for (const [i, d] of data.entries()) {
       const proccesedToken = processedTokens[i] as string[];
-
+      // @ts-ignore
       const phoneticToken: string[][] = quicker.processPhonetic(
         d,
       ) as string[][];
