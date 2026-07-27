@@ -20,7 +20,7 @@ RUN --mount=type=cache,id=npm,target=/root/.npm npm ci
 FROM builder AS dev
 COPY --from=pruner /app/json-pruned/full/ .
 EXPOSE 3000
-CMD ["npm", "--filter", "@search/backend", "run", "dev"]
+CMD ["npx", "turbo", "npm", "run", "dev", "--filter=@search/backend"]
 
 # STAGE 5
 FROM base AS compiled-builder
