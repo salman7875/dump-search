@@ -21,9 +21,5 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ],
-  "dependencies": {
-    "bullmq": "^5.81.2",
-    "redis": "^6.1.0"
-  }
+  ]
 }
