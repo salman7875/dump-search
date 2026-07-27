@@ -1,0 +1,33 @@
+volumes:
+  redis-data:
+
+services:
+  redis-infra:
+    image: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+  server:
+    build:
+      context: .
+      dockerfile: ./apps/server/Dockerfile
+      target: dev
+    environment:
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis-infra:
+        condition: service_healthy
+    volumes:
+      - .:/monorepo
+      - /monorepo/node_modules
+      - /monorepo/apps/server/node_modules
