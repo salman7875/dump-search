@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
-import { quicker } from '../../utils/quicker.js';
-import { retrieveServiceJSON } from './retrieve-json.services.js';
+import { quicker } from '@repo/utils';
+
+import { retrieveService } from './retrieve.services.js';
 
 const getAllDocs = async (req: Request, res: Response) => {
   const { query } = req.query as { query: string };
@@ -20,7 +21,7 @@ const getAllDocs = async (req: Request, res: Response) => {
     const literalTokens = queryPipeline.map((p) => p.literal);
 
     const { vocabMap, tokenIds } =
-      retrieveServiceJSON.getVocabFromToken(phoneticTokens);
+      retrieveService.getVocabFromToken(phoneticTokens);
 
     if (!tokenIds || tokenIds.length === 0) {
       return res.status(200).json({
@@ -30,7 +31,7 @@ const getAllDocs = async (req: Request, res: Response) => {
       });
     }
 
-    const { scoresRes, docIds } = retrieveServiceJSON.getScores(tokenIds);
+    const { scoresRes, docIds } = retrieveService.getScores(tokenIds);
     if (!docIds || docIds.length === 0) {
       return res.status(200).json({
         success: true,
@@ -39,9 +40,9 @@ const getAllDocs = async (req: Request, res: Response) => {
       });
     }
 
-    const { docRes } = retrieveServiceJSON.getDocs(docIds);
+    const { docRes } = retrieveService.getDocs(docIds);
 
-    const result = retrieveServiceJSON.weightingAndMergingDocs(
+    const result = retrieveService.weightingAndMergingDocs(
       literalTokens,
       docRes,
       scoresRes,

@@ -1,0 +1,43 @@
+# Dependencies & Build Artifacts
+**/node_modules
+**/.turbo
+**/.next
+**/dist
+**/build
+**/out
+
+# Version Control & IDEs
+.git
+.gitignore
+.git/
+.vscode
+.idea
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment & Local Secrets
+.env
+.env*.local
+.env.production
+.env.development
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Documentation & Tests
+**/*.md
+**/coverage
+
+# SQLite Databases & Storage
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3

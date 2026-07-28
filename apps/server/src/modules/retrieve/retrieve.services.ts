@@ -1,4 +1,5 @@
-import db from '../../libs/schema/db.js';
+// import db from '../../libs/schema/db.js';
+import db from '@repo/db';
 import {
   DocumentRecord,
   ScoreRecord,
@@ -7,114 +8,62 @@ import {
 
 const getVocabs = (phoneticTokens: string[]): VocabularyRecord[] => {
   try {
-    const data = db
+    if (phoneticTokens.length === 0) return [];
+    const placeholders = phoneticTokens.map(() => '?').join(', ');
+    return db
       .prepare(
-        `SELECT id, token, phonetic_token, alt_phonetic_token, idf_score FROM vocabulary WHERE phonetic_token IN (${phoneticTokens.map((t) => '?').join(', ')})`,
+        `
+      SELECT id, token, phonetic_token, alt_phonetic_token, idf_score 
+      FROM vocabulary 
+      WHERE phonetic_token IN (${placeholders}) OR alt_phonetic_token IN (${placeholders})
+    `,
       )
-      .all(phoneticTokens) as VocabularyRecord[];
-
-    if (!data) {
-      throw new Error('No vocab found!');
-    }
-
-    return data;
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (getVocabs): ${error.message}`);
-    } else {
-      console.error(error);
-    }
+      .all([...phoneticTokens, ...phoneticTokens]) as VocabularyRecord[];
+  } catch (error) {
+    console.error(`Error in getVocabs:`, error);
     throw error;
   }
 };
 
-const getVocabMap = (
-  vocabs: VocabularyRecord[],
-): Map<number, VocabularyRecord> => {
-  return new Map(vocabs.map((v) => [v.id, v]));
-};
-
-const getVocabTokenId = (vocabs: VocabularyRecord[]): number[] => {
-  return vocabs.map((v) => v.id);
-};
-
-const getVocabFromToken = (
-  tokens: string[],
-): {
-  vocabs: VocabularyRecord[];
-  vocabMap: Map<number, VocabularyRecord>;
-  tokenIds: number[];
-} => {
+const getVocabFromToken = (tokens: string[]) => {
   try {
     const vocabs = getVocabs(tokens);
-    const vocabMap = getVocabMap(vocabs);
-    const tokenIds = getVocabTokenId(vocabs);
-
-    if (tokenIds.length < 1) {
-      // return { success: true, message: 'No Token Ids', data: [] };
-      throw new Error('No Token Ids!');
-    }
-
+    const vocabMap = new Map(vocabs.map((v) => [v.id, v]));
+    const tokenIds = vocabs.map((v) => v.id);
     return { vocabs, vocabMap, tokenIds };
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (getVocabFromToken): ${error.message}`);
-    } else {
-      console.error(error);
-    }
+  } catch (error) {
+    console.error(`Error in getVocabFromToken:`, error);
     throw error;
   }
 };
 
-const getScores = (
-  tokenIds: number[],
-): {
-  scoresRes: ScoreRecord[];
-  docIds: number[];
-} => {
+const getScores = (tokenIds: number[]) => {
   try {
+    if (tokenIds.length === 0) return { scoresRes: [], docIds: [] };
+    const placeholders = tokenIds.map(() => '?').join(', ');
     const scoresRes = db
-      .prepare(
-        `SELECT * FROM scores WHERE token_id IN (${tokenIds.map((t) => '?').join(', ')})`,
-      )
+      .prepare(`SELECT * FROM scores WHERE token_id IN (${placeholders})`)
       .all(tokenIds) as ScoreRecord[];
-
-    if (!scoresRes) {
-      throw new Error('No Score Found!');
-    }
-
     const docIds = [...new Set(scoresRes.map((s) => s.doc_id))];
-
     return { scoresRes, docIds };
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (getScores): ${error.message}`);
-    } else {
-      console.error(error);
-    }
+  } catch (error) {
+    console.error(`Error in getScores:`, error);
     throw error;
   }
 };
 
-const getDocs = (docIds: number[]): { docRes: DocumentRecord[] } => {
+const getDocs = (docIds: number[]) => {
   try {
+    if (docIds.length === 0) return { docRes: [] };
+    const placeholders = docIds.map(() => '?').join(', ');
     const docRes = db
       .prepare(
-        `SELECT id, content, total_token FROM docs WHERE id IN (${docIds.map((d) => '?').join(', ')})`,
+        `SELECT id, title, content, total_token FROM docs WHERE id IN (${placeholders})`,
       )
       .all(docIds) as DocumentRecord[];
-
-    if (!docRes) {
-      throw new Error('No Docs Found!');
-    }
-
     return { docRes };
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (getDocs): ${error.message}`);
-    } else {
-      console.error(error);
-    }
+  } catch (error) {
+    console.error(`Error in getDocs:`, error);
     throw error;
   }
 };
@@ -127,57 +76,42 @@ const weightingAndMergingDocs = (
 ) => {
   try {
     const docMap = new Map(
-      documents.map((d) => [d.id, { ...d, title: d.content.substring(0, 10) }]),
+      documents.map((d) => [
+        d.id,
+        { ...d, content: d.content.substring(0, 500) },
+      ]),
     );
-    const docRankingMap = new Map<
-      number,
-      {
-        doc_id: number;
-        docs: any;
-        totalScore: number;
-        matchedLiteralToken: Set<string>;
-        matchedPhoneticToken: Set<string>;
-        tokenPosition: Map<string, number[]>;
-      }
-    >();
-    for (let i = 0; i < scores.length; i++) {
-      const score = scores[i]!;
-      const vocab = vocabMap.get(score.token_id);
+    const docRankingMap = new Map<number, any>();
 
+    for (const score of scores) {
+      const vocab = vocabMap.get(score.token_id);
       if (!vocab) continue;
 
       const docId = score.doc_id;
-      const doc = docMap.get(score.doc_id);
-      const position = score.position
-        ? JSON.parse(score.position.toString('utf-8'))
-        : [];
-
-      const weight = score.tf_score + vocab.idf_score;
-
-      if (!docRankingMap.get(docId)) {
+      if (!docRankingMap.has(docId)) {
         docRankingMap.set(docId, {
           doc_id: docId,
-          docs: doc,
+          docs: docMap.get(docId),
           totalScore: 0,
-          matchedLiteralToken: new Set(),
-          matchedPhoneticToken: new Set(),
-          tokenPosition: new Map(),
+          titleMatchBonus: 0,
+          matchedLiteralToken: new Set<string>(),
+          matchedPhoneticToken: new Set<string>(),
+          tokenPosition: new Map<string, number[]>(),
         });
       }
 
       const docRankData = docRankingMap.get(docId)!;
-      docRankData.totalScore += weight;
+      const position = score.position
+        ? JSON.parse(score.position.toString('utf-8'))
+        : [];
 
+      docRankData.totalScore += score.tf_score * vocab.idf_score;
       docRankData.matchedLiteralToken.add(vocab.token.toLowerCase());
       docRankData.matchedPhoneticToken.add(vocab.phonetic_token.toLowerCase());
-      docRankData.tokenPosition.set(
-        vocab.phonetic_token.toLowerCase(),
-        position,
-      );
+      docRankData.tokenPosition.set(vocab.token.toLowerCase(), position);
     }
 
     const finalResults = Array.from(docRankingMap.values()).map((doc) => {
-      const noOfTokenMatchedScore = doc.matchedPhoneticToken.size;
       let totalDistance = 0;
       let pairsCompared = 0;
 
@@ -185,79 +119,84 @@ const weightingAndMergingDocs = (
         const currentToken = processedTokens[i]!.toLowerCase();
         const nextToken = processedTokens[i + 1]!.toLowerCase();
 
-        // avoid calculating massive backward facing distance penalties.
+        if (doc.matchedLiteralToken.has(`${currentToken}-title`)) {
+          doc.titleMatchBonus = 25;
+        }
+
         if (currentToken === nextToken) continue;
 
-        const hasBothToken =
-          doc.tokenPosition.has(currentToken) &&
-          doc.tokenPosition.has(nextToken);
+        const pos1 =
+          doc.tokenPosition.get(currentToken) ||
+          doc.tokenPosition.get(`${currentToken}-title`);
+        const pos2 =
+          doc.tokenPosition.get(nextToken) ||
+          doc.tokenPosition.get(`${nextToken}-title`);
 
-        if (hasBothToken) {
-          const position1 = doc.tokenPosition.get(currentToken) as number[];
-          const position2 = doc.tokenPosition.get(nextToken) as number[];
-
+        if (pos1 && pos2) {
           let minPairDistance = Infinity;
-
-          for (const pos1 of position1) {
-            for (const pos2 of position2) {
-              const distance = pos2 - pos1;
-
-              // Enforce tight proximity thresholds (e.g, words within 30 tokens of each other)
-              if (distance > 0 && distance < minPairDistance && distance < 15) {
+          for (const p1 of pos1) {
+            for (const p2 of pos2) {
+              const distance = p2 - p1;
+              if (distance > 0 && distance < minPairDistance && distance < 50) {
                 minPairDistance = distance;
               }
             }
           }
-
           if (minPairDistance !== Infinity) {
             totalDistance += minPairDistance;
-            pairsCompared++; // Only increment if an actual structural match was found
+            pairsCompared++;
           }
         }
       }
 
-      // Proximity Scoring
       let proximityBoost = 1.0;
       let proximityScore = 0;
 
       if (pairsCompared > 0 && totalDistance > 0) {
-        proximityScore = Number((pairsCompared * 100) / totalDistance); // Calculate the pure proximity score for metrics output
-
-        // An average distance of 5 words will now yield a ~3.0x multiplier boost! (Aggressive inverse scaling)
+        proximityScore = (pairsCompared * 100) / totalDistance;
         const avgDistance = totalDistance / pairsCompared;
-        proximityBoost += 10 / (2 + Math.log(avgDistance));
+        proximityBoost += 12 / (1.5 + Math.log(avgDistance));
       }
 
-      if (totalDistance >= 1500) {
-        proximityBoost *= 0.3; // Slash score by 70% if tokens are backward (out of order penalty)
+      if (totalDistance >= 1000) {
+        proximityBoost *= 0.4;
       }
 
-      const tokenMatchWeight = noOfTokenMatchedScore * 5;
+      const docLength = Number(doc.docs?.total_token) || 1;
+      const baselineLength = 1000;
 
-      // Compute final score by scaling the entire matched baseline
-      const baseScore = tokenMatchWeight + Number(doc.totalScore);
+      const lengthFactor = Math.sqrt(docLength / baselineLength);
+
+      const normalizedTfIdf =
+        lengthFactor > 1
+          ? Number(doc.totalScore) / lengthFactor
+          : Number(doc.totalScore) * (1 + (1 - lengthFactor) * 0.5);
+
+      const totalQueryTokens = processedTokens.length || 1;
+      const matchCoverageRatio =
+        doc.matchedPhoneticToken.size / totalQueryTokens;
+      const coverageBonus = matchCoverageRatio * 10;
+
+      const baseScore =
+        normalizedTfIdf + coverageBonus + (doc.titleMatchBonus || 0);
+
       const finalScore = baseScore * proximityBoost;
 
       return {
         doc_id: doc.doc_id,
         docs: doc.docs,
-        totalScore: doc.totalScore,
+        totalScore: Number(doc.totalScore.toFixed(3)),
         proximityScore: Number(proximityScore.toFixed(3)),
         finalScore: Number(finalScore.toFixed(3)),
       };
     });
 
     return finalResults.sort((a, b) => b.finalScore - a.finalScore);
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error in (weightingAndMergingDocs): ${error.message}`);
-    } else {
-      console.error(error);
-    }
+  } catch (error) {
+    console.error(`Error in weightingAndMergingDocs:`, error);
     throw error;
   }
 };
-
 export const retrieveService = {
   getVocabFromToken,
   getScores,
