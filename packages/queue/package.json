@@ -1,14 +1,18 @@
 {
   "name": "@repo/queue",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "main": "./dist/main.js",
   "type": "module",
   "types": "./dist/main.d.ts",
+  "exports": {
+    ".": "./src/main.ts"
+  },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsx --watch src/main.ts"
+    "build": "tsc"
   },
   "dependencies": {
+    "@repo/db": "^1.0.0",
+    "@repo/utils": "^1.0.0",
     "bullmq": "^5.81.2",
     "redis": "^6.1.0"
   }

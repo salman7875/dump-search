@@ -1,0 +1,28 @@
+import { calculateDocFrequency } from "./calc-doc-freq.js";
+import { calculateIdfScore } from "./calc-idf-score.js";
+import { calculateScore } from "./calc-score.js";
+import { storeDoc } from "./store-doc.js";
+import { storeScores } from "./store-score.js";
+import { storeTokens } from "./store-token.js";
+
+export const fileProcess = (data: any) => {
+  const { docData, docIds } = storeDoc(data);
+
+  const {
+    docFrequency,
+    processedToken,
+    processedTitleTokens,
+    unProcessedTitleTokens,
+    unProcessedToken,
+  } = calculateDocFrequency(docData);
+
+  const idfScore = calculateIdfScore(docData, docFrequency);
+  storeTokens(docData, unProcessedToken, unProcessedTitleTokens, idfScore);
+  const scoreMap = calculateScore(
+    docData,
+    processedToken,
+    docIds,
+    processedTitleTokens,
+  );
+  storeScores(scoreMap);
+};

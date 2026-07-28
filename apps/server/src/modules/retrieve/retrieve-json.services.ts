@@ -1,4 +1,5 @@
-import db from '../../libs/schema/db.js';
+// import db from '../../libs/schema/db.js';
+import db from '@repo/db';
 import {
   DocumentRecord,
   ScoreRecord,

@@ -1,5 +1,8 @@
-import db from '../../libs/schema/db.js';
-import { quicker } from '../../utils/quicker.js';
+// import db from '../../libs/schema/db.js';
+// import { quicker } from '../../utils/quicker.js';
+import db from '@repo/db';
+import { quicker } from '@repo/utils';
+
 import { ScorePayload, VocabPayload } from './upload.types.js';
 
 const calculateDocFrequencyJSON = (

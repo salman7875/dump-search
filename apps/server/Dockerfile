@@ -38,10 +38,15 @@ RUN --mount=type=cache,id=npm,target=/root/.npm npm ci
 FROM node:20-alpine AS runner
 WORKDIR /usr/src/app
 ENV NODE_ENV=production
+
+RUN mkdir -p /usr/src/app/data && chown -R node:node /usr/src/app
+
 USER node
 
 COPY --chown=node:node --from=prod-installer /monorepo ./
 COPY --chown=node:node --from=compiled-builder /monorepo/apps/server/dist ./apps/server/dist
+
+ENV DATABASE_URL=/usr/src/app/data/test.db
 
 EXPOSE 3000
 CMD ["node", "apps/server/dist/server.js"]

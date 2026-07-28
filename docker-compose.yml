@@ -1,5 +1,6 @@
 volumes:
   redis-data:
+  sqlite-data:
 
 services:
   redis-infra:
@@ -22,6 +23,9 @@ services:
       target: dev
     environment:
       - PORT=3000
+      - REDIS_HOST=redis-infra
+      - REDIS_PORT=6379
+      - DATABASE_URL=/monorepo/data/test.db
     ports:
       - "3000:3000"
     depends_on:
@@ -31,3 +35,4 @@ services:
       - .:/monorepo
       - /monorepo/node_modules
       - /monorepo/apps/server/node_modules
+      - sqlite-data:/monorepo/data
