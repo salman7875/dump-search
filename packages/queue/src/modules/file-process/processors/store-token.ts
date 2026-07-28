@@ -1,5 +1,5 @@
 import db from "@repo/db";
-import { VocabPayload } from "../file-process.types.js";
+import { type VocabPayload } from "../file-process.types.js";
 
 export const storeTokens = (
   data: { id: string; title: string; text: string }[],

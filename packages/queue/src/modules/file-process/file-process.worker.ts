@@ -7,14 +7,22 @@ import connection from "../../config/queue.config.js";
 import { fileProcess } from "./processors/index.js";
 
 export const createFileProcessWorker = (): Worker => {
-  return new Worker(
+  const worker = new Worker(
     FILE_PROCESS_QUEUE_NAME,
     async (job: Job) => {
       switch (job.name) {
         case FileProcessJobName.PROCESS_FILE:
-          fileProcess(job.data);
+          return await fileProcess(job.data);
+        default:
+          throw new Error(`Unhandled job type: ${job.name}`);
       }
     },
-    { connection, concurrency: 5 },
+    { connection, concurrency: 5, lockDuration: 60000, lockRenewTime: 30000 },
   );
+
+  worker.on("failed", (job, err) => {
+    console.error(`Job with ${job?.id} failed: ${err}`);
+  });
+
+  return worker;
 };

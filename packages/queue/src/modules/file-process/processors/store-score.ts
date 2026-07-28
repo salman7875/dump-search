@@ -1,5 +1,5 @@
 import db from "@repo/db";
-import { ScorePayload } from "../file-process.types.js";
+import { type ScorePayload } from "../file-process.types.js";
 
 export const storeScores = (scoreMap: Map<string, ScorePayload>) => {
   try {

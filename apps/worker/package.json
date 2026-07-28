@@ -1,18 +1,17 @@
 {
   "name": "@repo/worker",
   "version": "1.0.0",
-  "description": "",
-  "main": "main.ts",
+  "main": "src/main.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "dev": "tsx --watch main.ts",
-    "start": "node dist/main.js"
+    "dev": "tsx --watch src/main.ts",
+    "start": "node dist/src/main.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@repo/queue": "^1.0.0"
   }

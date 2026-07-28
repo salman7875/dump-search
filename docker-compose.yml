@@ -16,6 +16,17 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+
+  bull:
+    image: venatum/bull-board:latest
+    ports:
+      - "4000:3000"
+    environment:
+      - REDIS_HOST=redis-infra
+      - REDIS_PORT=6379
+    depends_on:
+      redis-infra:
+        condition: service_healthy
   server:
     build:
       context: .
@@ -36,3 +47,21 @@ services:
       - /monorepo/node_modules
       - /monorepo/apps/server/node_modules
       - sqlite-data:/monorepo/data
+  worker:
+    build:
+      context: .
+      dockerfile: ./apps/worker/Dockerfile
+      target: dev
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=5120
+      - REDIS_HOST=redis-infra
+      - REDIS_PORT=6379
+      - DATABASE_URL=/app/data/test.db
+    depends_on:
+      redis-infra:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/worker/node_modules
+      - sqlite-data:/app/data
