@@ -4,10 +4,12 @@ import { calculateScore } from "./calc-score.js";
 import { storeDoc } from "./store-doc.js";
 import { storeScores } from "./store-score.js";
 import { storeTokens } from "./store-token.js";
+import { SandboxedJob } from "bullmq";
 
-export const fileProcess = (data: any) => {
+export default function fileProcess(job: SandboxedJob) {
   return new Promise((resolve, reject) => {
-    const { docData, docIds } = storeDoc(data);
+    console.log("🐐", job);
+    const { docData, docIds } = storeDoc(job.data);
 
     const {
       docFrequency,
@@ -28,4 +30,4 @@ export const fileProcess = (data: any) => {
     storeScores(scoreMap);
     resolve("Success!");
   });
-};
+}

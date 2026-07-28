@@ -29,7 +29,7 @@ CMD ["turbo", "run", "dev", "--filter=@repo/worker"]
 # 5. Copy source code and build worker
 FROM builder AS compiled-builder
 COPY --from=pruner /app/json-pruned/full/ .
-RUN npx turbo run build --filter=@repo/worker
+RUN npx turbo run build --filter=@repo/worker...
 
 
 # 6. Production dependencies only stage
@@ -44,8 +44,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 USER node
 
-# Copy production node_modules and built app
+# 1. Copy production dependencies
 COPY --chown=node:node --from=prod-installer /app ./
-COPY --chown=node:node --from=compiled-builder /app/apps/worker/dist ./apps/worker/dist
+
+# 2. Copy compiled applications & built packages (@repo/queue dist, @repo/worker dist)
+COPY --chown=node:node --from=compiled-builder /app/apps ./apps
+COPY --chown=node:node --from=compiled-builder /app/packages ./packages
 
 CMD ["node", "apps/worker/dist/index.js"]
