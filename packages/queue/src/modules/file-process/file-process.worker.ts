@@ -20,8 +20,6 @@ export const createFileProcessWorker = (): Worker => {
     connection,
     concurrency: os.cpus().length - 1,
     useWorkerThreads: false,
-    lockDuration: 60000,
-    lockRenewTime: 30000,
     ...(processorFilePath.endsWith(".ts") && {
       workerForkOptions: {
         execArgv: ["--import", "tsx"],
