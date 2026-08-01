@@ -8,7 +8,6 @@ import { SandboxedJob } from "bullmq";
 
 export default function fileProcess(job: SandboxedJob) {
   return new Promise((resolve, reject) => {
-    console.log("🐐", job);
     const { docData, docIds } = storeDoc(job.data);
 
     const {
@@ -19,7 +18,7 @@ export default function fileProcess(job: SandboxedJob) {
       unProcessedToken,
     } = calculateDocFrequency(docData);
 
-    const idfScore = calculateIdfScore(docData, docFrequency);
+    const idfScore = calculateIdfScore(docData.length || 1, docFrequency);
     storeTokens(docData, unProcessedToken, unProcessedTitleTokens, idfScore);
     const scoreMap = calculateScore(
       docData,
