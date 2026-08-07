@@ -28,13 +28,13 @@ CMD ["turbo", "run", "dev", "--filter=@repo/server"]
 
 
 # STAGE 5 - COPY FULL SOURCE CODE AND BUILD THE SERVER
-FROM base AS compiled-builder
+FROM builder AS compiled-builder
 COPY --from=pruner /app/json-pruned/full/ .
 RUN npm run build --filter=@repo/server
 
 
 # STAGE 6 - PRODUCTION LAYER
-FROM base AS prod-installer
+FROM builder AS prod-installer
 COPY --from=pruner /app/json-pruned/json/ .
 COPY package-lock.json package.json ./
 RUN --mount=type=cache,id=npm,target=/root/.npm npm ci

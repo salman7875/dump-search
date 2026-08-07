@@ -8,13 +8,14 @@
     ".": "./src/main.ts"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@repo/db": "^1.0.0",
     "@repo/utils": "^1.0.0",
     "bullmq": "^5.81.2",
     "natural": "^8.1.1",
-    "redis": "^6.1.0"
+    "redis": "^6.1.0",
+    "stream-json": "^3.5.0"
   }
 }

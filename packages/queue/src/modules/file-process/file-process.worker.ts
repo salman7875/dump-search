@@ -8,6 +8,7 @@ import { FILE_PROCESS_QUEUE_NAME } from "./file-process.types.js";
 import connection from "../../config/queue.config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// const fileName = "./processors/first-process";
 const fileName = "./processors/file-process.processor";
 
 const jsPath = path.resolve(__dirname, `${fileName}.js`);

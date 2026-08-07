@@ -1,6 +1,7 @@
 volumes:
   redis-data:
   sqlite-data:
+  floci-data:
 
 services:
   redis-infra:
@@ -27,16 +28,34 @@ services:
     depends_on:
       redis-infra:
         condition: service_healthy
+
+  floci:
+    image: floci/floci
+    container_name: floci
+    ports:
+      - "4566:4566"
+    environment:
+      - FLOCI_HOSTNAME=floci
+      - FLOCI_STORAGE_MODE=persistent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - floci-data:/app/data
+
   server:
     build:
       context: .
       dockerfile: ./apps/server/Dockerfile
       target: dev
+    container_name: server
     environment:
       - PORT=3000
       - REDIS_HOST=redis-infra
       - REDIS_PORT=6379
       - DATABASE_URL=/monorepo/data/test.db
+      - AWS_ENDPOINT_URL=http://floci:4566
+      - AWS_ACCESS_KEY_ID=floci
+      - AWS_SECRET_ACCESS_KEY=floci
+      - AWS_DEFAULT_REGION=us-east-1
     ports:
       - "3000:3000"
     depends_on:
@@ -47,16 +66,22 @@ services:
       - /monorepo/node_modules
       - /monorepo/apps/server/node_modules
       - sqlite-data:/monorepo/data
+
   worker:
     build:
       context: .
       dockerfile: ./apps/worker/Dockerfile
       target: dev
+    container_name: worker
     environment:
       - NODE_OPTIONS=--max-old-space-size=5120
       - REDIS_HOST=redis-infra
       - REDIS_PORT=6379
       - DATABASE_URL=/app/data/test.db
+      - AWS_ENDPOINT_URL=http://floci:4566
+      - AWS_ACCESS_KEY_ID=floci
+      - AWS_SECRET_ACCESS_KEY=floci
+      - AWS_DEFAULT_REGION=us-east-1
     depends_on:
       redis-infra:
         condition: service_healthy

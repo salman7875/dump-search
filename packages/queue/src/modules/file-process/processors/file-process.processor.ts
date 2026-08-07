@@ -18,6 +18,8 @@ export default function fileProcess(job: SandboxedJob) {
       unProcessedToken,
     } = calculateDocFrequency(docData);
 
+    console.log("SIZESSSSSS", docFrequency.size);
+
     const idfScore = calculateIdfScore(docData.length || 1, docFrequency);
     storeTokens(docData, unProcessedToken, unProcessedTitleTokens, idfScore);
     const scoreMap = calculateScore(
