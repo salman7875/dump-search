@@ -30,17 +30,17 @@ const uploadDoc = async (req: Request, res: Response) => {
     //   data.push(value);
     // }
 
-    const data = await afs.readFile(
-      path.join(__dirname, '../../../data', req.file.filename),
-      'utf-8',
-    );
-    const parsedData = JSON.parse(data);
-
-    fileProcessQueue.add(queueType.FileProcessJobName.PROCESS_FILE, parsedData);
-    // fileProcessQueue.add(
-    //   queueType.FileProcessJobName.PROCESS_FILE,
-    //   req.file.filename,
+    // const data = await afs.readFile(
+    //   path.join(__dirname, '../../../data', req.file.filename),
+    //   'utf-8',
     // );
+    // const parsedData = JSON.parse(data);
+
+    // fileProcessQueue.add(queueType.FileProcessJobName.PROCESS_FILE, parsedData);
+    fileProcessQueue.add(
+      queueType.FileProcessJobName.PROCESS_FILE,
+      req.file.filename,
+    );
     res.status(201).json({
       success: true,
       message: 'File is being added to the queue!',
