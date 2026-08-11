@@ -14,9 +14,6 @@ const uploadDoc = async (req: Request, res: Response) => {
       res.status(400).json({ error: 'No file uploaded' });
       return;
     }
-
-    console.log(req.file.filename);
-
     // const filePath = path.join(__dirname, '../../../data', req.file.filename);
 
     // const data: any = [];
