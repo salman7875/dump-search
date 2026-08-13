@@ -15,6 +15,10 @@ const db: DatabaseType = new Database(dbPath, {
   timeout: 5000,
 });
 
+db.pragma("journal_mode = WAL");
+db.pragma("synchronous = NORMAL");
+db.pragma("temp_store = MEMORY");
+
 const createSchema = `
   CREATE TABLE IF NOT EXISTS docs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

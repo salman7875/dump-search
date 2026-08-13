@@ -1,5 +1,5 @@
 import db from "@repo/db";
-import { type ScorePayload } from "../file-process.types.js";
+import { type ScorePayload } from "../../file-process.types.js";
 
 export const calculateScore = (
   data: { id: string; title: string; text: string }[],
