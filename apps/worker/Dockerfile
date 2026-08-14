@@ -1,5 +1,5 @@
 # STAGE 1 - PRUNE LAYER
-FROM node:20-alpine AS pruner
+FROM node:20-bookworm-slim AS pruner
 RUN npm i -g turbo
 WORKDIR /app
 COPY . .
@@ -7,8 +7,12 @@ RUN turbo prune --scope=@repo/worker --docker --out-dir=json-pruned
 
 
 # STAGE 2 - BASE LAYER (includes build dependencies for native packages like SQLite/Sharp)
-FROM node:20-alpine AS base
-RUN apk add --no-cache python3 make g++
+FROM node:20-bookworm-slim AS base
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 
@@ -38,7 +42,7 @@ RUN --mount=type=cache,id=npm,target=/root/.npm npm ci --omit=dev
 
 
 # STAGE 7 - FINAL LAYER (That runs production image)
-FROM node:20-alpine AS runner
+FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 USER node
