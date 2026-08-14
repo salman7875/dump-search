@@ -1,9 +1,10 @@
-import express from "express";
-import { uploadController } from "./upload.controllers.js";
-import { multerUpload } from "../../libs/multer/index.js";
+import express from 'express';
+import { uploadController } from './upload.controllers.js';
+import { multerUpload } from '../../libs/multer/index.js';
 
 const router = express.Router();
 
-router.post("/", multerUpload.single("document"), uploadController.uploadDoc);
+router.post('/', uploadController.uploadDoc);
+router.post('/url', uploadController.getUploadUrl);
 
 export default router;

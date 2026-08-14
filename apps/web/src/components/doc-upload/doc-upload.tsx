@@ -12,7 +12,18 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import type { UploadingDoc } from "../../types/upload.type";
+
+export interface UploadingDoc {
+  id: string;
+  name: string;
+  size: string;
+  progress: number;
+  status: "uploading" | "completed" | "error";
+  error?: string;
+  xhr?: XMLHttpRequest;
+}
+
+const API_URL = "http://localhost:3000";
 
 const DocUploadSection: React.FC = () => {
   const [files, setFiles] = useState<UploadingDoc[]>([]);
@@ -27,46 +38,119 @@ const DocUploadSection: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
-  const simulateUpload = (fileId: string) => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.floor(Math.random() * 15) + 5;
+  const uploadFileToS3 = async (fileId: string, rawFile: File) => {
+    try {
+      const resolvedFileType =
+        rawFile.type ||
+        (rawFile.name.endsWith(".json")
+          ? "application/json"
+          : "application/octet-stream");
 
-      if (progress >= 100) {
-        clearInterval(interval);
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.id === fileId
-              ? {
-                  ...f,
-                  progress: 100,
-                  status: Math.random() > 0.1 ? "completed" : "error",
-                  error: "Upload failed. Please try again.",
-                }
-              : f,
-          ),
-        );
-      } else {
-        setFiles((prev) =>
-          prev.map((f) => (f.id === fileId ? { ...f, progress } : f)),
-        );
+      const res = await fetch(`${API_URL}/doc/upload/url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: rawFile.name,
+          fileType: resolvedFileType,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorText = await res
+          .text()
+          .catch(() => "Failed to get upload URL response");
+        throw new Error(`Server Error (${res.status}): ${errorText}`);
       }
-    }, 300);
+
+      const resData = await res.json();
+      const isSuccess = resData.success ?? resData.sucess;
+
+      if (!isSuccess || !resData?.data?.uploadUrl) {
+        throw new Error(resData?.message || "Failed to get upload URL");
+      }
+
+      const { uploadUrl, key } = resData.data;
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", uploadUrl, true);
+        xhr.setRequestHeader("Content-Type", rawFile.type);
+
+        setFiles((prev) =>
+          prev.map((f) => (f.id === fileId ? { ...f, xhr } : f)),
+        );
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentCompleted = Math.round(
+              (event.loaded / event.total) * 100,
+            );
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileId ? { ...f, progress: percentCompleted } : f,
+              ),
+            );
+          }
+        };
+
+        xhr.onload = async () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            await fetch(`${API_URL}/doc/upload`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ key, fileName: rawFile.name }),
+            });
+
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileId
+                  ? { ...f, progress: 100, status: "completed" }
+                  : f,
+              ),
+            );
+
+            resolve();
+          } else {
+            reject(new Error(`S3 Upload failed with status ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error("Network error uploading to S3"));
+        xhr.onabort = () => reject(new Error("Upload cancelled"));
+
+        xhr.send(rawFile);
+      });
+    } catch (error: any) {
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId
+            ? {
+                ...f,
+                status: "error",
+                error: error.message || "Upload failed. Please try again.",
+              }
+            : f,
+        ),
+      );
+    }
   };
 
   const handleFiles = (fileList: FileList) => {
     const validFiles = Array.from(fileList).filter(
       (file) =>
         file.type === "application/pdf" ||
+        file.type === "application/json" ||
         file.type.startsWith("image/") ||
-        file.type.startsWith("text/"),
+        file.type.startsWith("text/") ||
+        file.type.endsWith("json"),
     );
 
     if (validFiles.length === 0) return;
 
     validFiles.forEach((file) => {
+      const fileId = crypto.randomUUID();
       const newFile: UploadingDoc = {
-        id: crypto.randomUUID(),
+        id: fileId,
         name: file.name,
         size: formatFileSize(file.size),
         progress: 0,
@@ -74,7 +158,8 @@ const DocUploadSection: React.FC = () => {
       };
 
       setFiles((prev) => [newFile, ...prev]);
-      simulateUpload(newFile.id);
+
+      uploadFileToS3(fileId, file);
     });
   };
 
@@ -98,11 +183,18 @@ const DocUploadSection: React.FC = () => {
   const onFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       handleFiles(e.target.files);
+      e.target.value = "";
     }
   };
 
   const removeFile = (id: string) => {
-    setFiles((prev) => prev.filter((file) => file.id !== id));
+    setFiles((prev) => {
+      const target = prev.find((file) => file.id === id);
+      if (target?.xhr && target.status === "uploading") {
+        target.xhr.abort();
+      }
+      return prev.filter((file) => file.id !== id);
+    });
   };
 
   return (
@@ -133,7 +225,7 @@ const DocUploadSection: React.FC = () => {
           ref={fileInputRef}
           onChange={onFileSelect}
           multiple
-          accept=".pdf,image/*,text/*"
+          accept=".pdf,image/*,text/*,.json"
           className="hidden"
           aria-label="Upload files"
         />
@@ -188,7 +280,7 @@ const DocUploadSection: React.FC = () => {
                       <CheckCircle2 className="w-4 h-4 text-zinc-900" />
                     )}
                     {file.status === "error" && (
-                      <AlertCircle className="w-4 h-4 text-zinc-400" />
+                      <AlertCircle className="w-4 h-4 text-red-500" />
                     )}
 
                     <button
@@ -214,7 +306,7 @@ const DocUploadSection: React.FC = () => {
                 )}
 
                 {file.status === "error" && file.error && (
-                  <p className="text-[11px] text-zinc-500 mt-1 font-normal">
+                  <p className="text-[11px] text-red-500 mt-1 font-normal">
                     {file.error}
                   </p>
                 )}
