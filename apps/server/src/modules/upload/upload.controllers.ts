@@ -12,7 +12,7 @@ const getUploadUrl = async (req: Request, res: Response) => {
     const s3Key = `uploads/${Date.now()}-${fileName}`;
     const contentType = fileType || 'application/octet-stream';
 
-    const command = createObjectCommand({
+    const command = await createObjectCommand({
       bucketName: 'my-bucket',
       key: s3Key,
       contentType,
@@ -29,6 +29,8 @@ const getUploadUrl = async (req: Request, res: Response) => {
 
     res.status(201).json({ success: true, data: { uploadUrl, key: s3Key } });
   } catch (err) {
+    console.log(err);
+
     res.status(500).json({ success: false, message: err });
   }
 };
@@ -37,7 +39,7 @@ const uploadDoc = async (req: Request, res: Response) => {
   try {
     const { key, fileName } = req.body;
 
-    const command = getObjectCommand({ bucketName: 'my-bucket', key });
+    const command = await getObjectCommand({ bucketName: 'my-bucket', key });
     const presignedUrl = await generateSignedUrl(command);
 
     fileProcessQueue.add(

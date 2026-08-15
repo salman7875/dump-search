@@ -1,6 +1,7 @@
 import { config } from 'dotenv';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 config({ path: path.join(__dirname, '../../../.env') });
+
 import path from 'path';
 import express from 'express';
 import cors from 'cors';

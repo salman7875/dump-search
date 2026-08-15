@@ -268,8 +268,6 @@ async function queryIndexFromDB(query) {
   `;
 
   const allData = db.prepare(q).all(processedTokens);
-  console.log(allData);
-
   const vocabs = db
     .prepare(
       `SELECT id, token, idf_score FROM vocabulary WHERE token IN (${processedTokens.map((t) => '?').join(', ')})`,
@@ -328,7 +326,6 @@ async function main() {
 
     rl.question('Enter your query: ', async (query) => {
       const queryResult = await queryIndexFromDB(query);
-      console.log(queryResult[0], queryResult.length);
       // const queryResult = await queryIndex(query);
       // const ids = [...new Set(queryResult.map((item) => item.refNo))];
       // const relevantParagraphs = await findRelevantParagraphs(ids);

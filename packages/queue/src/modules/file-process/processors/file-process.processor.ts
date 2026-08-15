@@ -2,7 +2,6 @@ import { performance, PerformanceObserver } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createObjectCommand } from "@repo/aws/s3";
 
 import { calculateDocFrequency } from "./calculating/calc-doc-freq.js";
 import { calculateIdfScore } from "./calculating/calc-idf-score.js";
@@ -34,17 +33,16 @@ export default async function fileProcess(job: SandboxedJob) {
   performance.mark("read-file-start");
   const response = await fetch(job.data);
   const data = await response.json();
-  console.log(typeof data, data);
   performance.mark("read-file-end");
   performance.measure("read-file", "read-file-start", "read-file-end");
 
   performance.mark("parse-json-start");
-  const parsedData = JSON.parse(data);
+
   performance.mark("parse-json-end");
   performance.measure("parse-json", "parse-json-start", "parse-json-end");
 
   performance.mark("store-doc-start");
-  const { docData, docIds } = storeDoc(parsedData);
+  const { docData, docIds } = storeDoc(data);
   performance.mark("store-doc-end");
   performance.measure("store-doc", "store-doc-start", "store-doc-end");
 
@@ -101,7 +99,11 @@ export default async function fileProcess(job: SandboxedJob) {
 
   await new Promise((resolve) => setImmediate(resolve));
 
-  const outputPath = path.join(__dirname, "performance-results.json");
+  const outputPath = path.join(
+    __dirname,
+    "../../../../../../metrics/",
+    "performance-results.json",
+  );
 
   await fs.writeFile(
     outputPath,

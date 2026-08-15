@@ -1,0 +1,15 @@
+{
+  "jobId": "1",
+  "processedAt": "2026-08-15T13:14:55.945Z",
+  "metrics": {
+    "total-job-time": 47308.32,
+    "read-file": 328.66,
+    "parse-json": 0.05,
+    "store-doc": 671.64,
+    "calculate-doc-freq": 30964.8,
+    "calculate-idf-score": 100.95,
+    "store-tokens": 2962.64,
+    "calculate-score": 5311.68,
+    "store-scores": 6967.29
+  }
+}
