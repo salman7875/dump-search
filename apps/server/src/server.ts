@@ -1,5 +1,5 @@
 import app from './app.js';
-import { initBucketCors } from './libs/s3/index.js';
+import { initBucketCors } from '@repo/aws/s3';
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {

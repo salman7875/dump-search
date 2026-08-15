@@ -2,6 +2,7 @@ import { performance, PerformanceObserver } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createObjectCommand } from "@repo/aws/s3";
 
 import { calculateDocFrequency } from "./calculating/calc-doc-freq.js";
 import { calculateIdfScore } from "./calculating/calc-idf-score.js";
@@ -26,15 +27,14 @@ const observer = new PerformanceObserver((list) => {
 observer.observe({ entryTypes: ["measure"], buffered: true });
 
 export default async function fileProcess(job: SandboxedJob) {
-  const url = "../../../../../../apps/server/data";
-  const filePath = path.join(__dirname, url, job.data);
-
   Object.keys(results).forEach((key) => delete results[key]);
 
   performance.mark("job-start");
 
   performance.mark("read-file-start");
-  const data = await fs.readFile(filePath, "utf-8");
+  const response = await fetch(job.data);
+  const data = await response.json();
+  console.log(typeof data, data);
   performance.mark("read-file-end");
   performance.measure("read-file", "read-file-start", "read-file-end");
 
@@ -73,18 +73,9 @@ export default async function fileProcess(job: SandboxedJob) {
   );
 
   performance.mark("store-tokens-start");
-  storeTokens(
-    docData,
-    unProcessedToken,
-    unProcessedTitleTokens,
-    idfScore,
-  );
+  storeTokens(docData, unProcessedToken, unProcessedTitleTokens, idfScore);
   performance.mark("store-tokens-end");
-  performance.measure(
-    "store-tokens",
-    "store-tokens-start",
-    "store-tokens-end",
-  );
+  performance.measure("store-tokens", "store-tokens-start", "store-tokens-end");
 
   performance.mark("calculate-score-start");
   const scoreMap = calculateScore(
@@ -103,11 +94,7 @@ export default async function fileProcess(job: SandboxedJob) {
   performance.mark("store-scores-start");
   storeScores(scoreMap);
   performance.mark("store-scores-end");
-  performance.measure(
-    "store-scores",
-    "store-scores-start",
-    "store-scores-end",
-  );
+  performance.measure("store-scores", "store-scores-start", "store-scores-end");
 
   performance.mark("job-end");
   performance.measure("total-job-time", "job-start", "job-end");

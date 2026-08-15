@@ -1,8 +1,10 @@
 import type { Request, Response } from 'express';
 import { fileProcessQueue, queueType } from '@repo/queue';
-import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import s3Client from '../../libs/s3/index.js';
+import {
+  createObjectCommand,
+  getObjectCommand,
+  generateSignedUrl,
+} from '@repo/aws/s3';
 
 const getUploadUrl = async (req: Request, res: Response) => {
   try {
@@ -10,13 +12,13 @@ const getUploadUrl = async (req: Request, res: Response) => {
     const s3Key = `uploads/${Date.now()}-${fileName}`;
     const contentType = fileType || 'application/octet-stream';
 
-    const command = new PutObjectCommand({
-      Bucket: 'my-bucket',
-      Key: s3Key,
-      ContentType: contentType,
+    const command = createObjectCommand({
+      bucketName: 'my-bucket',
+      key: s3Key,
+      contentType,
     });
 
-    let uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+    let uploadUrl = await generateSignedUrl(command);
 
     if (process.env.NODE_ENV !== 'production' && process.env.AWS_ENDPOINT_URL) {
       uploadUrl = uploadUrl.replace(
@@ -35,10 +37,8 @@ const uploadDoc = async (req: Request, res: Response) => {
   try {
     const { key, fileName } = req.body;
 
-    const command = new GetObjectCommand({ Bucket: 'my-bucket', Key: key });
-    const presignedUrl = await getSignedUrl(s3Client, command, {
-      expiresIn: 300,
-    });
+    const command = getObjectCommand({ bucketName: 'my-bucket', key });
+    const presignedUrl = await generateSignedUrl(command);
 
     fileProcessQueue.add(
       queueType.FileProcessJobName.PROCESS_FILE,

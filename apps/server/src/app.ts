@@ -1,7 +1,10 @@
 import { config } from 'dotenv';
-config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+config({ path: path.join(__dirname, '../../../.env') });
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
+import { fileURLToPath } from 'node:url';
 import db from '@repo/db';
 
 import { uploadRoutes } from './modules/upload/index.js';
